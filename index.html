@@ -1,14 +1,66 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>French Flashcards</title>
   <style>
-    body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; }
-    iframe { width: 100%; height: 100%; border: none; }
+    body { font-family: -apple-system, sans-serif; padding: 15px; background: #f4f4f9; margin: 0; }
+    h2 { text-align: center; color: #333; font-size: 32px; margin-top: 10px; }
+    .card { background: white; padding: 18px; margin-bottom: 12px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.08); cursor: pointer; }
+    .card:active { background: #e0f2fe; }
+    .french { font-size: 26px; font-weight: bold; color: #1e3a8a; margin-bottom: 5px; }
+    .english { font-size: 18px; color: #64748b; }
   </style>
 </head>
 <body>
-  <iframe src="https://docs.google.com/spreadsheets/d/e/2PACX-1vQMjMGbQWhZN8bcQe_omRzqloetJEdMGLDylpPu-qVEL1kO0b-V3D44D7UYRBur_5qKivpko3ynpkkg/pub?gid=0&single=true&output=csv"></iframe>
+  <h2>🇫🇷 French Flashcards</h2>
+  <div id="list">Loading...</div>
+
+  <script>
+    // PASTE YOUR PUBLISHED CSV URL BETWEEN THE QUOTES BELOW:
+    const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQMjMGbQWhZN8bcQe_omRzqloetJEdMGLDylpPu-qVEL1kO0b-V3D44D7UYRBur_5qKivpko3ynpkkg/pub?gid=0&single=true&output=csv';
+
+    async function loadData() {
+      try {
+        const response = await fetch(SHEET_CSV_URL);
+        const text = await response.text();
+        
+        // Parse CSV lines
+        const lines = text.split(/\r?\n/);
+        let container = document.getElementById('list');
+        container.innerHTML = '';
+
+        // Skip row 1 (headers)
+        for (let i = 1; i < lines.length; i++) {
+          if (!lines[i]) continue;
+          
+          // Split by comma (handles standard CSV)
+          let cols = lines[i].split(',');
+          let english = cols[1] ? cols[1].replace(/^"|"$/g, '').trim() : ''; // Col B
+          let french = cols[2] ? cols[2].replace(/^"|"$/g, '').trim() : '';  // Col C
+
+          if (french || english) {
+            let card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = '<div class="french">' + french + '</div><div class="english">' + english + '</div>';
+            card.onclick = () => speak(french);
+            container.appendChild(card);
+          }
+        }
+      } catch (err) {
+        document.getElementById('list').innerText = 'Error loading sheet data.';
+      }
+    }
+
+    function speak(text) {
+      window.speechSynthesis.cancel();
+      let utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'fr-FR';
+      utterance.rate = 0.9;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    loadData();
+  </script>
 </body>
 </html>
