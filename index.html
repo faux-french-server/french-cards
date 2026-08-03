@@ -35,7 +35,6 @@
     // Replace with your published Google Sheet CSV URL
     const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQMjMGbQWhZN8bcQe_omRzqloetJEdMGLDylpPu-qVEL1kO0b-V3D44D7UYRBur_5qKivpko3ynpkkg/pub?gid=0&single=true&output=csv';
 
-    // Store selected voice globally so it never shifts
     let selectedVoice = null;
 
     function initVoices() {
@@ -43,13 +42,11 @@
       let voices = window.speechSynthesis.getVoices();
       if (!voices.length) return;
 
-      // Try to find a male French voice first (e.g. Thomas), or fall back to any French voice
       selectedVoice = voices.find(v => v.lang && v.lang.startsWith('fr') && v.name.toLowerCase().includes('thomas')) ||
                       voices.find(v => v.lang && v.lang.startsWith('fr') && (v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('man'))) ||
                       voices.find(v => v.lang && v.lang.startsWith('fr'));
     }
 
-    // Force Safari to load voices immediately
     if (typeof speechSynthesis !== 'undefined') {
       speechSynthesis.onvoiceschanged = initVoices;
       initVoices();
@@ -95,10 +92,10 @@
         const text = await response.text();
         const lines = text.split(/\r?\n/);
         
-        container.innerHTML = '';
+        let validCards = [];
 
-        // Read backwards: starts from the bottom of the sheet and works up to row 1
-        for (let i = lines.length - 1; i >= 1; i--) {
+        // Parse valid rows starting after header (Row 2 onwards)
+        for (let i = 1; i < lines.length; i++) {
           let line = lines[i].trim();
           if (!line) continue;
           
@@ -107,13 +104,24 @@
           let french = cols[2] ? cols[2].replace(/^"|"$/g, '').trim() : '';
 
           if (french || english) {
-            let card = document.createElement('div');
-            card.className = 'card';
-            card.innerHTML = '<div class="french">' + escapeHtml(french) + '</div><div class="english">' + escapeHtml(english) + '</div>';
-            card.onclick = function() { speak(french); };
-            container.appendChild(card);
+            validCards.push({ french, english });
           }
         }
+
+        // Reverse the array so bottom items in Google Sheet show up FIRST
+        validCards.reverse();
+
+        container.innerHTML = '';
+
+        // Render the reversed list
+        validCards.forEach(item => {
+          let card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = '<div class="french">' + escapeHtml(item.french) + '</div><div class="english">' + escapeHtml(item.english) + '</div>';
+          card.onclick = function() { speak(item.french); };
+          container.appendChild(card);
+        });
+
       } catch (err) {
         container.innerHTML = '<div style="text-align: center; color: #ef4444; padding: 20px;">Error loading phrases. Tap title to try again.</div>';
       } finally {
@@ -133,7 +141,6 @@
       utterance.lang = 'fr-FR';
       utterance.rate = 0.85;
 
-      // Re-check voices if not loaded yet
       if (!selectedVoice) {
         initVoices();
       }
