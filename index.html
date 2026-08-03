@@ -1,42 +1,43 @@
-<script>
-    const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQMjMGbQWhZN8bcQe_omRzqloetJEdMGLDylpPu-qVEL1kO0b-V3D44D7UYRBur_5qKivpko3ynpkkg/pub?gid=0&single=true&output=csv';
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>French Flashcards</title>
+  <style>
+    body { font-family: -apple-system, sans-serif; padding: 15px; background: #f4f4f9; margin: 0; }
+    h2 { text-align: center; color: #333; font-size: 32px; margin-top: 10px; }
+    .card { background: white; padding: 18px; margin-bottom: 12px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.08); cursor: pointer; }
+    .card:active { background: #e0f2fe; }
+    .french { font-size: 19px; font-weight: bold; color: #1e3a8a; margin-bottom: 5px; }
+    .english { font-size: 14px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <h2>🇫🇷 French Flashcards</h2>
+  <div id="list">Loading...</div>
 
-    // Proper CSV parser that handles commas inside quotes
-    function parseCSVLine(text) {
-      let result = [];
-      let cell = '';
-      let inQuotes = false;
-      for (let i = 0; i < text.length; i++) {
-        let c = text[i];
-        if (c === '"') {
-          inQuotes = !inQuotes;
-        } else if (c === ',' && !inQuotes) {
-          result.push(cell.trim());
-          cell = '';
-        } else {
-          cell += c;
-        }
-      }
-      result.push(cell.trim());
-      return result;
-    }
+  <script>
+    // PASTE YOUR PUBLISHED CSV URL BETWEEN THE QUOTES BELOW:
+    const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQMjMGbQWhZN8bcQe_omRzqloetJEdMGLDylpPu-qVEL1kO0b-V3D44D7UYRBur_5qKivpko3ynpkkg/pub?gid=0&single=true&output=csv';
 
     async function loadData() {
       try {
         const response = await fetch(SHEET_CSV_URL);
         const text = await response.text();
-        const lines = text.split(/\r?\n/);
         
+        // Parse CSV lines
+        const lines = text.split(/\r?\n/);
         let container = document.getElementById('list');
         container.innerHTML = '';
 
-        // Skip header row 1
+        // Skip row 1 (headers)
         for (let i = 1; i < lines.length; i++) {
-          if (!lines[i].trim()) continue;
+          if (!lines[i]) continue;
           
-          let cols = parseCSVLine(lines[i]);
-          let english = cols[1] ? cols[1].replace(/^"|"$/g, '') : ''; // Col B
-          let french = cols[2] ? cols[2].replace(/^"|"$/g, '') : '';  // Col C
+          // Split by comma (handles standard CSV)
+          let cols = lines[i].split(',');
+          let english = cols[1] ? cols[1].replace(/^"|"$/g, '').trim() : ''; // Col B
+          let french = cols[2] ? cols[2].replace(/^"|"$/g, '').trim() : '';  // Col C
 
           if (french || english) {
             let card = document.createElement('div');
@@ -52,26 +53,14 @@
     }
 
     function speak(text) {
-      if (!text) return;
       window.speechSynthesis.cancel();
       let utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'fr-FR';
-      utterance.rate = 0.85;
-
-      // Ensure iOS selects a French voice explicitly
-      let voices = window.speechSynthesis.getVoices();
-      let frenchVoice = voices.find(v => v.lang.startsWith('fr'));
-      if (frenchVoice) {
-        utterance.voice = frenchVoice;
-      }
-
+      utterance.rate = 0.9;
       window.speechSynthesis.speak(utterance);
-    }
-
-    // Pre-load voices for Safari/iOS
-    if (typeof speechSynthesis !== 'undefined') {
-      speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
     }
 
     loadData();
   </script>
+</body>
+</html>
