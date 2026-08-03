@@ -2,10 +2,24 @@
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>French Flashcards</title>
+  <title>French Phrases</title>
   <style>
     body { font-family: -apple-system, sans-serif; padding: 15px; background: #f4f4f9; margin: 0; }
-    h2 { text-align: center; color: #333; font-size: 26px; margin-top: 10px; }
+    
+    /* Interactive Title Styling */
+    h2 { 
+      text-align: center; 
+      color: #333; 
+      font-size: 26px; 
+      margin-top: 10px; 
+      margin-bottom: 20px;
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: opacity 0.15s ease;
+    }
+    h2:active { opacity: 0.5; }
+
     .card { background: white; padding: 18px; margin-bottom: 12px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.08); cursor: pointer; }
     .card:active { background: #e0f2fe; }
     .french { font-size: 21px; font-weight: bold; color: #1e3a8a; margin-bottom: 5px; }
@@ -13,14 +27,16 @@
   </style>
 </head>
 <body>
-  <h2>🇫🇷 French Flashcards</h2>
+
+  <h2 id="title" onclick="loadData()">🇫🇷 French Phrases</h2>
+
   <div id="list">Loading...</div>
 
   <script>
     // Replace with your published Google Sheet CSV URL
     const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQMjMGbQWhZN8bcQe_omRzqloetJEdMGLDylpPu-qVEL1kO0b-V3D44D7UYRBur_5qKivpko3ynpkkg/pub?gid=0&single=true&output=csv';
 
-    // Reliable CSV parser that preserves content inside quotes (commas, quotes, etc.)
+    // CSV parser handling commas inside quotes
     function parseCSVLine(line) {
       let values = [];
       let currentValue = '';
@@ -30,7 +46,6 @@
         let char = line[i];
 
         if (char === '"') {
-          // Handle escaped double quotes ("")
           if (insideQuotes && line[i + 1] === '"') {
             currentValue += '"';
             i++;
@@ -49,14 +64,21 @@
     }
 
     async function loadData() {
+      let titleElem = document.getElementById('title');
+      let container = document.getElementById('list');
+
+      // Visual feedback on title while reloading
+      titleElem.innerHTML = '🔄 Updating...';
+
       try {
-        const response = await fetch(SHEET_CSV_URL);
-        if (!response.ok) throw new Error('Network response was not ok');
+        // Cache-busting parameter to pull fresh Google Sheet data
+        const freshUrl = SHEET_CSV_URL + (SHEET_CSV_URL.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
+        const response = await fetch(freshUrl);
+        if (!response.ok) throw new Error('Network response failed');
         
         const text = await response.text();
         const lines = text.split(/\r?\n/);
         
-        let container = document.getElementById('list');
         container.innerHTML = '';
 
         // Skip header row 1
@@ -77,11 +99,13 @@
           }
         }
       } catch (err) {
-        document.getElementById('list').innerText = 'Error loading flashcards. Please try refreshing.';
+        container.innerHTML = '<div style="text-align: center; color: #ef4444; padding: 20px;">Error loading phrases. Tap title to try again.</div>';
+      } finally {
+        // Reset title back to original text
+        titleElem.innerHTML = '🇫🇷 French Phrases';
       }
     }
 
-    // Prevents special characters from corrupting HTML elements
     function escapeHtml(str) {
       return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     }
@@ -89,12 +113,11 @@
     function speak(text) {
       if (!text || !('speechSynthesis' in window)) return;
       
-      window.speechSynthesis.cancel(); // Stop any active speech
+      window.speechSynthesis.cancel();
       let utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'fr-FR';
       utterance.rate = 0.85;
 
-      // Select French voice on iOS/Safari
       let voices = window.speechSynthesis.getVoices();
       let frenchVoice = voices.find(v => v.lang && v.lang.startsWith('fr'));
       if (frenchVoice) {
@@ -104,7 +127,6 @@
       window.speechSynthesis.speak(utterance);
     }
 
-    // Warm up speech synthesis engine for mobile Safari
     if (typeof speechSynthesis !== 'undefined') {
       speechSynthesis.onvoiceschanged = function() {
         speechSynthesis.getVoices();
