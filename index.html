@@ -26,25 +26,29 @@
     .card:active { background: #e0f2fe; }
     .french { font-size: 21px; font-weight: bold; color: #1e3a8a; margin-bottom: 5px; }
     .english { font-size: 16px; color: #64748b; }
-    .status { text-align: center; font-size: 13px; color: #64748b; margin-top: -10px; margin-bottom: 15px; font-weight: 500; }
   </style>
 </head>
 <body>
 
   <h2 id="title" onclick="loadData()">🇫🇷 French Phrases</h2>
-  <div class="status" id="status-msg">Tap any card to speak French</div>
 
   <div id="list">Loading...</div>
 
   <script>
-    // Pre-load iOS Speech Synthesis Voices
     let frenchVoice = null;
 
     function loadVoices() {
       if ('speechSynthesis' in window) {
         let voices = window.speechSynthesis.getVoices();
-        // Look for a native French voice (e.g. Thomas, Amélie, or fr-FR)
-        frenchVoice = voices.find(v => v.lang.startsWith('fr')) || null;
+        
+        // Filter for French language voices
+        let frVoices = voices.filter(v => v.lang.startsWith('fr'));
+        
+        // Target male French voices (Thomas first, then Nicolas)
+        frenchVoice = frVoices.find(v => v.name.includes('Thomas')) || 
+                      frVoices.find(v => v.name.includes('Nicolas')) || 
+                      frVoices.find(v => v.lang === 'fr-FR') ||
+                      frVoices[0];
       }
     }
 
@@ -132,29 +136,20 @@
 
     function speakFrench(text) {
       if (!text) return;
+      if (!('speechSynthesis' in window)) return;
 
-      const status = document.getElementById('status-msg');
-      status.innerText = "🗣️ Speaking: " + text;
+      if (!frenchVoice) loadVoices();
 
-      if (!('speechSynthesis' in window)) {
-        status.innerText = "❌ Speech API not supported on this browser.";
-        return;
-      }
-
-      // Cancel any ongoing speech
       window.speechSynthesis.cancel();
 
       let utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'fr-FR';
-      utterance.rate = 0.9; // Slightly slower for language learning clarity
+      utterance.rate = 0.88; 
+      utterance.pitch = 0.95; 
 
       if (frenchVoice) {
         utterance.voice = frenchVoice;
       }
-
-      utterance.onerror = function(e) {
-        status.innerText = "❌ Speech error. Check iPhone volume.";
-      };
 
       window.speechSynthesis.speak(utterance);
     }
