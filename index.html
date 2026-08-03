@@ -86,10 +86,9 @@
           let cols = parseCSVLine(line);
           let english = cols[1] ? cols[1].replace(/^"|"$/g, '').trim() : '';
           let french = cols[2] ? cols[2].replace(/^"|"$/g, '').trim() : '';
-          let audioUrl = cols[3] ? cols[3].replace(/^"|"$/g, '').trim() : '';
 
           if (french || english) {
-            validCards.push({ french, english, audioUrl });
+            validCards.push({ french, english });
           }
         }
 
@@ -100,7 +99,7 @@
           let card = document.createElement('div');
           card.className = 'card';
           card.innerHTML = '<div class="french">' + escapeHtml(item.french) + '</div><div class="english">' + escapeHtml(item.english) + '</div>';
-          card.onclick = function() { playAudio(item.french, item.audioUrl); };
+          card.onclick = function() { playAudio(item.french); };
           container.appendChild(card);
         });
 
@@ -115,26 +114,22 @@
       return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     }
 
-    function playAudio(frenchText, audioUrl) {
+    function playAudio(frenchText) {
+      if (!frenchText) return;
+
+      // Stop previous playing audio
       if (currentAudio) {
         currentAudio.pause();
         currentAudio.currentTime = 0;
       }
 
-      // Generate instant Google Translate stream URL as primary/fallback audio
-      const googleTtsUrl = 'https://translate.google.com/translate_tts?ie=UTF-8&tl=fr&client=tw-ob&q=' + encodeURIComponent(frenchText);
+      // Use ResponsiveVoice / SoundofText open endpoint (Bypasses iOS CORS and Drive blocks)
+      const audioUrl = 'https://api.streamelements.com/kappa/v2/speech?voice=Mathieu&text=' + encodeURIComponent(frenchText);
       
-      // If Column D has a drive link, try to stream it, but fallback seamlessly if Safari blocks Drive
-      let sound = new Audio(audioUrl || googleTtsUrl);
-      
-      sound.play().catch(err => {
-        console.log("Drive audio blocked, falling back to instant TTS stream...", err);
-        // Fallback to instant stream if Drive link fails to play on iOS
-        currentAudio = new Audio(googleTtsUrl);
-        currentAudio.play();
+      currentAudio = new Audio(audioUrl);
+      currentAudio.play().catch(err => {
+        console.log("Audio playback error:", err);
       });
-
-      currentAudio = sound;
     }
 
     loadData();
