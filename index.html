@@ -14,22 +14,13 @@
       color: #333; 
       font-size: 26px; 
       margin-top: 10px; 
-      margin-bottom: 5px;
+      margin-bottom: 20px;
       cursor: pointer;
       user-select: none;
       -webkit-tap-highlight-color: transparent;
+      transition: opacity 0.15s ease;
     }
     h2:active { opacity: 0.5; }
-
-    #voice-debug {
-      font-size: 11px;
-      color: #0369a1;
-      background: #e0f2fe;
-      padding: 8px;
-      border-radius: 6px;
-      margin-bottom: 15px;
-      word-break: break-all;
-    }
 
     .card { background: white; padding: 18px; margin-bottom: 12px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.08); cursor: pointer; }
     .card:active { background: #e0f2fe; }
@@ -40,34 +31,12 @@
 <body>
 
   <h2 id="title" onclick="loadData()">🇫🇷 French Phrases</h2>
-  <div id="voice-debug">Detecting iOS voices...</div>
 
   <div id="list">Loading...</div>
 
   <script>
-    let availableVoices = [];
-
-    function updateVoiceList() {
-      if (!('speechSynthesis' in window)) return;
-      
-      let voices = window.speechSynthesis.getVoices();
-      let frenchVoices = voices.filter(v => v.lang && v.lang.startsWith('fr'));
-      
-      let debugBox = document.getElementById('voice-debug');
-      if (frenchVoices.length > 0) {
-        debugBox.innerHTML = '<strong>Available FR Voices:</strong><br>' + 
-          frenchVoices.map(v => v.name + ' (' + v.lang + ')').join('<br>');
-      } else {
-        debugBox.innerText = 'No French voices exposed by iOS yet. Tap a card once to initialize.';
-      }
-      
-      availableVoices = frenchVoices;
-    }
-
-    if (typeof speechSynthesis !== 'undefined') {
-      speechSynthesis.onvoiceschanged = updateVoiceList;
-      setTimeout(updateVoiceList, 500);
-    }
+    // Global audio player object
+    let currentAudio = null;
 
     function parseCSVLine(line) {
       let values = [];
@@ -131,7 +100,7 @@
           let card = document.createElement('div');
           card.className = 'card';
           card.innerHTML = '<div class="french">' + escapeHtml(item.french) + '</div><div class="english">' + escapeHtml(item.english) + '</div>';
-          card.onclick = function() { speak(item.french); };
+          card.onclick = function() { playAudio(item.french); };
           container.appendChild(card);
         });
 
@@ -146,23 +115,22 @@
       return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     }
 
-    function speak(text) {
-      if (!text || !('speechSynthesis' in window)) return;
-      
-      window.speechSynthesis.cancel();
-      let utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'fr-FR';
-      utterance.rate = 0.85;
+    function playAudio(text) {
+      if (!text) return;
 
-      updateVoiceList();
-
-      if (availableVoices.length > 0) {
-        // Find Thomas or first available French voice
-        let selected = availableVoices.find(v => v.name.toLowerCase().includes('thomas')) || availableVoices[0];
-        utterance.voice = selected;
+      // Stop any existing audio playing
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
       }
 
-      window.speechSynthesis.speak(utterance);
+      // Generate Google Translate high-quality French MP3 stream URL
+      const audioUrl = 'https://translate.google.com/translate_tts?ie=UTF-8&tl=fr&client=tw-ob&q=' + encodeURIComponent(text);
+      
+      currentAudio = new Audio(audioUrl);
+      currentAudio.play().catch(err => {
+        console.log('Audio play blocked or failed:', err);
+      });
     }
 
     loadData();
