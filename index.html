@@ -26,11 +26,13 @@
     .card:active { background: #e0f2fe; }
     .french { font-size: 21px; font-weight: bold; color: #1e3a8a; margin-bottom: 5px; }
     .english { font-size: 16px; color: #64748b; }
+    .status { text-align: center; font-size: 13px; color: #64748b; margin-top: -10px; margin-bottom: 15px; font-weight: 500; }
   </style>
 </head>
 <body>
 
   <h2 id="title" onclick="loadData()">🇫🇷 French Phrases</h2>
+  <div class="status" id="status-msg">Tap any card to play audio</div>
 
   <div id="list">Loading...</div>
 
@@ -117,19 +119,27 @@
     function playAudio(frenchText) {
       if (!frenchText) return;
 
-      // Stop previous playing audio
+      const status = document.getElementById('status-msg');
+      status.innerText = "🔊 Playing: " + frenchText;
+
       if (currentAudio) {
         currentAudio.pause();
         currentAudio.currentTime = 0;
       }
 
-      // Use ResponsiveVoice / SoundofText open endpoint (Bypasses iOS CORS and Drive blocks)
-      const audioUrl = 'https://api.streamelements.com/kappa/v2/speech?voice=Mathieu&text=' + encodeURIComponent(frenchText);
+      // Open public TTS proxy for French (No API Key Required & iOS Safari Friendly)
+      const audioUrl = 'https://translate.google.com/translate_tts?ie=UTF-8&tl=fr&client=gtx&q=' + encodeURIComponent(frenchText);
       
       currentAudio = new Audio(audioUrl);
-      currentAudio.play().catch(err => {
-        console.log("Audio playback error:", err);
-      });
+      
+      let playPromise = currentAudio.play();
+
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          status.innerText = "❌ Muted? Check side switch on iPhone.";
+          console.error("Playback failed:", error);
+        });
+      }
     }
 
     loadData();
