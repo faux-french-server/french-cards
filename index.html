@@ -3,6 +3,10 @@
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>French Phrases</title>
+  
+  <!-- Load your external config file -->
+  <script src="config.js"></script>
+
   <style>
     body { font-family: -apple-system, sans-serif; padding: 15px; background: #f4f4f9; margin: 0; }
     
@@ -32,8 +36,7 @@
   <div id="list">Loading...</div>
 
   <script>
-    // Replace with your published Google Sheet CSV URL
-    const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQMjMGbQWhZN8bcQe_omRzqloetJEdMGLDylpPu-qVEL1kO0b-V3D44D7UYRBur_5qKivpko3ynpkkg/pub?gid=0&single=true&output=csv';
+    // SHEET_CSV_URL is now loaded automatically from config.js!
 
     let selectedVoice = null;
 
@@ -94,7 +97,6 @@
         
         let validCards = [];
 
-        // Parse valid rows starting after header (Row 2 onwards)
         for (let i = 1; i < lines.length; i++) {
           let line = lines[i].trim();
           if (!line) continue;
@@ -108,12 +110,11 @@
           }
         }
 
-        // Reverse the array so bottom items in Google Sheet show up FIRST
+        // Reverse so newest entries display at top
         validCards.reverse();
 
         container.innerHTML = '';
 
-        // Render the reversed list
         validCards.forEach(item => {
           let card = document.createElement('div');
           card.className = 'card';
