@@ -32,6 +32,7 @@
   <div id="list">Loading...</div>
 
   <script>
+    // Replace with your published Google Sheet CSV URL
     const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQMjMGbQWhZN8bcQe_omRzqloetJEdMGLDylpPu-qVEL1kO0b-V3D44D7UYRBur_5qKivpko3ynpkkg/pub?gid=0&single=true&output=csv';
 
     // Store selected voice globally so it never shifts
@@ -96,7 +97,8 @@
         
         container.innerHTML = '';
 
-        for (let i = 1; i < lines.length; i++) {
+        // Read backwards: starts from the bottom of the sheet and works up to row 1
+        for (let i = lines.length - 1; i >= 1; i--) {
           let line = lines[i].trim();
           if (!line) continue;
           
