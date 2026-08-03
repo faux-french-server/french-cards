@@ -32,12 +32,26 @@
 <body>
 
   <h2 id="title" onclick="loadData()">🇫🇷 French Phrases</h2>
-  <div class="status" id="status-msg">Tap any card to play audio</div>
+  <div class="status" id="status-msg">Tap any card to speak French</div>
 
   <div id="list">Loading...</div>
 
   <script>
-    let currentAudio = null;
+    // Pre-load iOS Speech Synthesis Voices
+    let frenchVoice = null;
+
+    function loadVoices() {
+      if ('speechSynthesis' in window) {
+        let voices = window.speechSynthesis.getVoices();
+        // Look for a native French voice (e.g. Thomas, Amélie, or fr-FR)
+        frenchVoice = voices.find(v => v.lang.startsWith('fr')) || null;
+      }
+    }
+
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+      loadVoices();
+    }
 
     function parseCSVLine(line) {
       let values = [];
@@ -101,7 +115,7 @@
           let card = document.createElement('div');
           card.className = 'card';
           card.innerHTML = '<div class="french">' + escapeHtml(item.french) + '</div><div class="english">' + escapeHtml(item.english) + '</div>';
-          card.onclick = function() { playAudio(item.french); };
+          card.onclick = function() { speakFrench(item.french); };
           container.appendChild(card);
         });
 
@@ -116,30 +130,33 @@
       return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     }
 
-    function playAudio(frenchText) {
-      if (!frenchText) return;
+    function speakFrench(text) {
+      if (!text) return;
 
       const status = document.getElementById('status-msg');
-      status.innerText = "🔊 Playing: " + frenchText;
+      status.innerText = "🗣️ Speaking: " + text;
 
-      if (currentAudio) {
-        currentAudio.pause();
-        currentAudio.currentTime = 0;
+      if (!('speechSynthesis' in window)) {
+        status.innerText = "❌ Speech API not supported on this browser.";
+        return;
       }
 
-      // Open public TTS proxy for French (No API Key Required & iOS Safari Friendly)
-      const audioUrl = 'https://translate.google.com/translate_tts?ie=UTF-8&tl=fr&client=gtx&q=' + encodeURIComponent(frenchText);
-      
-      currentAudio = new Audio(audioUrl);
-      
-      let playPromise = currentAudio.play();
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
 
-      if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          status.innerText = "❌ Muted? Check side switch on iPhone.";
-          console.error("Playback failed:", error);
-        });
+      let utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'fr-FR';
+      utterance.rate = 0.9; // Slightly slower for language learning clarity
+
+      if (frenchVoice) {
+        utterance.voice = frenchVoice;
       }
+
+      utterance.onerror = function(e) {
+        status.innerText = "❌ Speech error. Check iPhone volume.";
+      };
+
+      window.speechSynthesis.speak(utterance);
     }
 
     loadData();
