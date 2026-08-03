@@ -4,7 +4,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>French Phrases</title>
   
-  <!-- Load your external config file -->
   <script src="config.js"></script>
 
   <style>
@@ -15,13 +14,22 @@
       color: #333; 
       font-size: 26px; 
       margin-top: 10px; 
-      margin-bottom: 20px;
+      margin-bottom: 5px;
       cursor: pointer;
       user-select: none;
       -webkit-tap-highlight-color: transparent;
-      transition: opacity 0.15s ease;
     }
     h2:active { opacity: 0.5; }
+
+    #voice-debug {
+      font-size: 11px;
+      color: #0369a1;
+      background: #e0f2fe;
+      padding: 8px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      word-break: break-all;
+    }
 
     .card { background: white; padding: 18px; margin-bottom: 12px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.08); cursor: pointer; }
     .card:active { background: #e0f2fe; }
@@ -32,40 +40,33 @@
 <body>
 
   <h2 id="title" onclick="loadData()">🇫🇷 French Phrases</h2>
+  <div id="voice-debug">Detecting iOS voices...</div>
 
   <div id="list">Loading...</div>
 
   <script>
-    let selectedVoice = null;
+    let availableVoices = [];
 
-    // Helper to scan for Thomas Enhanced/Premium
-    function getThomasVoice() {
-      if (!('speechSynthesis' in window)) return null;
-      let voices = window.speechSynthesis.getVoices();
-      if (!voices.length) return null;
-
-      // 1. Prioritize Thomas Enhanced / Premium specifically
-      let thomasEnhanced = voices.find(v => v.lang && v.lang.startsWith('fr') && v.name.toLowerCase().includes('thomas') && (v.name.toLowerCase().includes('enhanced') || v.name.toLowerCase().includes('premium')));
+    function updateVoiceList() {
+      if (!('speechSynthesis' in window)) return;
       
-      // 2. Standard Thomas
-      let thomasStandard = voices.find(v => v.lang && v.lang.startsWith('fr') && v.name.toLowerCase().includes('thomas'));
-
-      // 3. Fallback to any male French voice
-      let maleVoice = voices.find(v => v.lang && v.lang.startsWith('fr') && (v.name.toLowerCase().includes('nicolas') || v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('man')));
-
-      // 4. Fallback to standard French voice
-      let defaultFrench = voices.find(v => v.lang && v.lang.startsWith('fr'));
-
-      return thomasEnhanced || thomasStandard || maleVoice || defaultFrench;
-    }
-
-    function initVoices() {
-      selectedVoice = getThomasVoice();
+      let voices = window.speechSynthesis.getVoices();
+      let frenchVoices = voices.filter(v => v.lang && v.lang.startsWith('fr'));
+      
+      let debugBox = document.getElementById('voice-debug');
+      if (frenchVoices.length > 0) {
+        debugBox.innerHTML = '<strong>Available FR Voices:</strong><br>' + 
+          frenchVoices.map(v => v.name + ' (' + v.lang + ')').join('<br>');
+      } else {
+        debugBox.innerText = 'No French voices exposed by iOS yet. Tap a card once to initialize.';
+      }
+      
+      availableVoices = frenchVoices;
     }
 
     if (typeof speechSynthesis !== 'undefined') {
-      speechSynthesis.onvoiceschanged = initVoices;
-      initVoices();
+      speechSynthesis.onvoiceschanged = updateVoiceList;
+      setTimeout(updateVoiceList, 500);
     }
 
     function parseCSVLine(line) {
@@ -123,9 +124,7 @@
           }
         }
 
-        // Reverse so newest entries display at top
         validCards.reverse();
-
         container.innerHTML = '';
 
         validCards.forEach(item => {
@@ -155,10 +154,12 @@
       utterance.lang = 'fr-FR';
       utterance.rate = 0.85;
 
-      // Always re-evaluate on tap to pick up Thomas Enhanced if iOS loaded it after page boot
-      let bestVoice = getThomasVoice();
-      if (bestVoice) {
-        utterance.voice = bestVoice;
+      updateVoiceList();
+
+      if (availableVoices.length > 0) {
+        // Find Thomas or first available French voice
+        let selected = availableVoices.find(v => v.name.toLowerCase().includes('thomas')) || availableVoices[0];
+        utterance.voice = selected;
       }
 
       window.speechSynthesis.speak(utterance);
