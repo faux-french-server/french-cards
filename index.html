@@ -121,17 +121,20 @@
         currentAudio.currentTime = 0;
       }
 
-      // 1. Use direct MP3 link from Google Drive if present in Column D
-      // 2. Fallback to Google Translate instant audio stream if Column D is empty
-      let targetUrl = audioUrl;
-      if (!targetUrl && frenchText) {
-        targetUrl = 'https://translate.google.com/translate_tts?ie=UTF-8&tl=fr&client=tw-ob&q=' + encodeURIComponent(frenchText);
-      }
+      // Generate instant Google Translate stream URL as primary/fallback audio
+      const googleTtsUrl = 'https://translate.google.com/translate_tts?ie=UTF-8&tl=fr&client=tw-ob&q=' + encodeURIComponent(frenchText);
+      
+      // If Column D has a drive link, try to stream it, but fallback seamlessly if Safari blocks Drive
+      let sound = new Audio(audioUrl || googleTtsUrl);
+      
+      sound.play().catch(err => {
+        console.log("Drive audio blocked, falling back to instant TTS stream...", err);
+        // Fallback to instant stream if Drive link fails to play on iOS
+        currentAudio = new Audio(googleTtsUrl);
+        currentAudio.play();
+      });
 
-      if (targetUrl) {
-        currentAudio = new Audio(targetUrl);
-        currentAudio.play().catch(err => console.log('Audio playback error:', err));
-      }
+      currentAudio = sound;
     }
 
     loadData();
