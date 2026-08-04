@@ -241,7 +241,7 @@
           <button class="delete-btn" onclick="handleWebDelete(event, ${index})" title="Delete Phrase">&times;</button>
           <div class="french">${escapeHtml(item.french)}</div>
           <div class="english">${escapeHtml(item.english)}</div>
-          <button class="slow-btn" onclick="handleSlowPlay(event, ${index})" title="Play slowly (0.5x)">🐢</button>
+          <button class="slow-btn" onclick="handleSlowPlay(event, ${index})" title="Play slowly">🐢</button>
         `;
 
         // Add swipe gesture handlers
@@ -465,18 +465,14 @@
     function speakFrench(text, isSlow = false) {
       if (!text) return;
 
-      // Handle Native iOS WebKit message handlers (if using Xcode/WKWebView native app)
-      if (window.webkit && window.webkit.messageHandlers) {
-        if (isSlow && window.webkit.messageHandlers.nativeSpeakSlow) {
-          window.webkit.messageHandlers.nativeSpeakSlow.postMessage(text);
-          return;
-        } else if (window.webkit.messageHandlers.nativeSpeak) {
-          window.webkit.messageHandlers.nativeSpeak.postMessage(text);
-          return;
-        }
+      // Send structured payload to iOS native app via nativeSpeak
+      if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeSpeak) {
+        const payload = (isSlow ? "SLOW|" : "NORMAL|") + text;
+        window.webkit.messageHandlers.nativeSpeak.postMessage(payload);
+        return;
       }
 
-      // Browser Web Speech API fallback (Safari / Chrome)
+      // Browser Web Speech API fallback (Safari / Chrome on web)
       if (!('speechSynthesis' in window)) return;
       if (!frenchVoice) loadVoices();
 
