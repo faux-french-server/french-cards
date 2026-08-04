@@ -99,6 +99,7 @@
       position: relative;
       background: white; 
       padding: 18px;
+      padding-bottom: 24px;
       margin-bottom: 12px; 
       border-radius: 12px; 
       box-shadow: 0 2px 5px rgba(0,0,0,0.08); 
@@ -113,7 +114,7 @@
     }
 
     .french { font-size: 21px; font-weight: bold; color: #1e3a8a; margin-bottom: 5px; padding-right: 30px; }
-    .english { font-size: 16px; color: #64748b; }
+    .english { font-size: 16px; color: #64748b; padding-right: 35px; }
 
     /* Delete "X" Button (Visible by default on Web/Desktop) */
     .delete-btn {
@@ -136,6 +137,33 @@
     .delete-btn:hover {
       color: #ef4444;
       background-color: #fee2e2;
+    }
+
+    /* Turtle Slow Playback Button */
+    .slow-btn {
+      position: absolute;
+      bottom: 10px;
+      right: 12px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 18px;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 4px 8px;
+      line-height: 1;
+      transition: transform 0.15s ease, background-color 0.2s ease;
+      z-index: 10;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    .slow-btn:hover {
+      background-color: #e2e8f0;
+    }
+
+    .slow-btn:active {
+      transform: scale(0.9);
+      background-color: #cbd5e1;
     }
 
     /* Hide Delete "X" Button ONLY inside the Native iOS App */
@@ -212,6 +240,7 @@
           <button class="delete-btn" onclick="handleWebDelete(event, ${index})" title="Delete Phrase">&times;</button>
           <div class="french">${escapeHtml(item.french)}</div>
           <div class="english">${escapeHtml(item.english)}</div>
+          <button class="slow-btn" onclick="handleSlowPlay(event, ${index})" title="Play slowly (0.5x)">🐢</button>
         `;
 
         // Add swipe gesture handlers
@@ -227,6 +256,13 @@
       deletePhrase(index);
     }
 
+    function handleSlowPlay(e, index) {
+      // Prevent card click audio event from firing when clicking the turtle button
+      e.stopPropagation();
+      unlockAudioOnIOS();
+      speakFrench(localPhrases[index].french, 0.5);
+    }
+
     function attachSwipeHandler(card, index) {
       let startX = 0;
       let startY = 0;
@@ -234,6 +270,9 @@
       let isSwiping = false;
 
       card.addEventListener('touchstart', (e) => {
+        // Don't register swipe if touching buttons directly
+        if (e.target.closest('.delete-btn') || e.target.closest('.slow-btn')) return;
+
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
         isSwiping = false;
@@ -261,7 +300,9 @@
         }
       }, { passive: true });
 
-      card.addEventListener('touchend', () => {
+      card.addEventListener('touchend', (e) => {
+        if (e.target.closest('.delete-btn') || e.target.closest('.slow-btn')) return;
+
         card.classList.add('animating');
 
         // Threshold to trigger delete: swipe right past 110 pixels
@@ -277,9 +318,9 @@
           card.style.transform = 'translateX(0px)';
           card.style.opacity = '1';
 
-          // If it was just a clean tap, play audio
+          // If it was just a clean tap, play audio at normal speed
           if (!isSwiping) {
-            speakFrench(localPhrases[index].french);
+            speakFrench(localPhrases[index].french, 0.88);
           }
         }
 
@@ -289,11 +330,11 @@
 
       // Desktop fallback click
       card.onclick = function(e) {
-        // Ignore clicks directly on the delete "X" button
-        if (e.target && e.target.classList.contains('delete-btn')) return;
+        // Ignore clicks directly on action buttons
+        if (e.target && (e.target.classList.contains('delete-btn') || e.target.classList.contains('slow-btn'))) return;
 
         if (!isSwiping && !('ontouchstart' in window)) {
-          speakFrench(localPhrases[index].french);
+          speakFrench(localPhrases[index].french, 0.88);
         }
       };
     }
@@ -434,12 +475,18 @@
       }
     }
 
-    function speakFrench(text) {
+    function speakFrench(text, playbackRate = 0.88) {
       if (!text) return;
 
-      if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeSpeak) {
-        window.webkit.messageHandlers.nativeSpeak.postMessage(text);
-        return;
+      // Handle native iOS app WebKit bridge
+      if (window.webkit && window.webkit.messageHandlers) {
+        if (playbackRate < 0.8 && window.webkit.messageHandlers.nativeSpeakSlow) {
+          window.webkit.messageHandlers.nativeSpeakSlow.postMessage(text);
+          return;
+        } else if (window.webkit.messageHandlers.nativeSpeak) {
+          window.webkit.messageHandlers.nativeSpeak.postMessage(JSON.stringify({ text: text, rate: playbackRate }));
+          return;
+        }
       }
 
       if (!('speechSynthesis' in window)) return;
@@ -448,7 +495,7 @@
       window.speechSynthesis.cancel();
       let utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'fr-FR';
-      utterance.rate = 0.88;
+      utterance.rate = playbackRate;
       utterance.pitch = 0.95;
 
       if (frenchVoice) {
