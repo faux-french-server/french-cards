@@ -21,61 +21,38 @@
       transition: opacity 0.15s ease;
     }
     h2:active { opacity: 0.5; }
-.shortcut-btn-container {
-  text-align: center;
-  margin-top: -10px;
-  margin-bottom: 20px;
-}
 
-.shortcut-btn {
-  display: inline-block;
-  padding: 6px 14px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #ffffff;
-  background-color: #007aff;
-  border-radius: 16px;
-  text-decoration: none;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.12);
-  transition: transform 0.1s ease;
-}
+    .add-phrase-container {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      max-width: 400px;
+      margin: 0 auto 20px auto;
+    }
 
-.add-phrase-container {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  max-width: 400px;
-  margin: 0 auto 20px auto;
-}
+    .add-phrase-container input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      font-size: 15px;
+      outline: none;
+    }
 
-.add-phrase-container input {
-  flex: 1;
-  padding: 10px 14px;
-  border: 1px solid #ccc;
-  border-radius: 10px;
-  font-size: 15px;
-  outline: none;
-}
+    .add-phrase-container button {
+      padding: 10px 16px;
+      background-color: #007aff;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+    }
 
-.add-phrase-container button {
-  padding: 10px 16px;
-  background-color: #007aff;
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.add-phrase-container button:active {
-  opacity: 0.8;
-}    
-
-.shortcut-btn:active {
-  transform: scale(0.96);
-}
-
+    .add-phrase-container button:active {
+      opacity: 0.8;
+    }    
 
     .card { background: white; padding: 18px; margin-bottom: 12px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.08); cursor: pointer; }
     .card:active { background: #e0f2fe; }
@@ -87,10 +64,11 @@
 
   <h2 id="title" onclick="loadData()">🇫🇷 French Phrases</h2>
 
-<div class="add-phrase-container">
-  <input type="text" id="phraseInput" placeholder="Enter new phrase..." />
-  <button id="addBtn" onclick="handleAddPhrase()">Translate & Add</button>
-</div>
+  <div class="add-phrase-container">
+    <input type="text" id="phraseInput" placeholder="Enter new phrase..." />
+    <button id="addBtn" onclick="handleAddPhrase()">Translate & Add</button>
+  </div>
+
   <div id="list">Loading...</div>
 
   <script>
@@ -100,10 +78,8 @@
       if ('speechSynthesis' in window) {
         let voices = window.speechSynthesis.getVoices();
         
-        // Filter for French language voices
         let frVoices = voices.filter(v => v.lang.startsWith('fr'));
         
-        // Target male French voices (Thomas first, then Nicolas)
         frenchVoice = frVoices.find(v => v.name.includes('Thomas')) || 
                       frVoices.find(v => v.name.includes('Nicolas')) || 
                       frVoices.find(v => v.lang === 'fr-FR') ||
@@ -193,66 +169,65 @@
       return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     }
 
-function speakFrench(text) {
-  if (!text) return;
+    async function handleAddPhrase() {
+      const input = document.getElementById('phraseInput');
+      const phrase = input.value.trim();
+      
+      if (!phrase) return;
 
-  // 1. If running inside native iOS app, send text to Swift AVSpeechSynthesizer
-  if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeSpeak) {
-    window.webkit.messageHandlers.nativeSpeak.postMessage(text);
-    return;
-  }
+      const btn = document.getElementById('addBtn');
+      btn.innerText = 'Adding...';
+      btn.disabled = true;
 
-  async function handleAddPhrase() {
-  const input = document.getElementById('phraseInput');
-  const phrase = input.value.trim();
-  
-  if (!phrase) return;
+      try {
+        await fetch('https://script.google.com/macros/s/AKfycbyFm4CMsRhjso3PoojdVf1X3ucuBdiznvcfNrcbEmqrnaoRYkOcn5vWbPOGYjaT4BLy/exec', {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phrase: phrase })
+        });
 
-  const btn = document.getElementById('addBtn');
-  btn.innerText = 'Adding...';
-  btn.disabled = true;
+        input.value = '';
+        btn.innerText = 'Translate & Add';
+        btn.disabled = false;
 
-  try {
-    // Replace YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL with your Web App URL
-    await fetch('https://script.google.com/macros/s/AKfycbyFm4CMsRhjso3PoojdVf1X3ucuBdiznvcfNrcbEmqrnaoRYkOcn5vWbPOGYjaT4BLy/exec', {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phrase: phrase })
-    });
+        // Reload list after adding
+        setTimeout(() => {
+          if (typeof loadData === 'function') loadData();
+        }, 1500);
 
-    input.value = '';
-    btn.innerText = 'Translate & Add';
-    btn.disabled = false;
+      } catch (error) {
+        alert('Error adding phrase');
+        btn.innerText = 'Translate & Add';
+        btn.disabled = false;
+      }
+    }
 
-    // Reload list after adding
-    setTimeout(() => {
-      if (typeof loadData === 'function') loadData();
-    }, 1500);
+    function speakFrench(text) {
+      if (!text) return;
 
-  } catch (error) {
-    alert('Error adding phrase');
-    btn.innerText = 'Translate & Add';
-    btn.disabled = false;
-  }
-}
+      // 1. Send text to Swift AVSpeechSynthesizer if running in native app
+      if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeSpeak) {
+        window.webkit.messageHandlers.nativeSpeak.postMessage(text);
+        return;
+      }
 
-  // 2. Fallback for regular web browsers
-  if (!('speechSynthesis' in window)) return;
-  if (!frenchVoice) loadVoices();
+      // 2. Fallback for regular web browsers
+      if (!('speechSynthesis' in window)) return;
+      if (!frenchVoice) loadVoices();
 
-  window.speechSynthesis.cancel();
-  let utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'fr-FR';
-  utterance.rate = 0.88;
-  utterance.pitch = 0.95;
+      window.speechSynthesis.cancel();
+      let utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'fr-FR';
+      utterance.rate = 0.88;
+      utterance.pitch = 0.95;
 
-  if (frenchVoice) {
-    utterance.voice = frenchVoice;
-  }
+      if (frenchVoice) {
+        utterance.voice = frenchVoice;
+      }
 
-  window.speechSynthesis.speak(utterance);
-}
+      window.speechSynthesis.speak(utterance);
+    }
 
     loadData();
   </script>
