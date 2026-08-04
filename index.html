@@ -7,13 +7,39 @@
   <style>
     body { font-family: -apple-system, sans-serif; padding: 15px; background: #f4f4f9; margin: 0; }
     
+    .header-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 10px;
+      margin-bottom: 20px;
+    }
+
     h2 { 
-      text-align: center; 
       color: #333; 
       font-size: 26px; 
-      margin-top: 10px; 
-      margin-bottom: 20px;
+      margin: 0;
       user-select: none;
+    }
+
+    .sync-btn {
+      background: #e2e8f0;
+      border: none;
+      border-radius: 50%;
+      width: 34px;
+      height: 34px;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .sync-btn:active {
+      transform: scale(0.9);
+      background: #cbd5e1;
     }
 
     .add-phrase-container {
@@ -48,11 +74,10 @@
       opacity: 0.8;
     }    
 
-    /* Card Layout & Delete Button */
     .card { 
       position: relative;
       background: white; 
-      padding: 18px 40px 18px 18px; /* Extra right padding so text doesn't hit the X */
+      padding: 18px 40px 18px 18px;
       margin-bottom: 12px; 
       border-radius: 12px; 
       box-shadow: 0 2px 5px rgba(0,0,0,0.08); 
@@ -87,7 +112,10 @@
 </head>
 <body>
 
-  <h2 id="title">🇫🇷 French Phrases</h2>
+  <div class="header-container">
+    <h2>🇫🇷 French Phrases</h2>
+    <button class="sync-btn" id="syncBtn" onclick="syncWithCloud()" title="Sync from Google Sheet">🔄</button>
+  </div>
 
   <div class="add-phrase-container">
     <input type="text" id="phraseInput" placeholder="Enter new phrase..." />
@@ -118,7 +146,6 @@
       loadVoices();
     }
 
-    // Render cards array to DOM
     function renderCards(phrases) {
       const container = document.getElementById('list');
       container.innerHTML = '';
@@ -136,24 +163,18 @@
           <div class="french">${escapeHtml(item.french)}</div>
           <div class="english">${escapeHtml(item.english)}</div>
         `;
-        
-        // Tap card to speak audio
         card.onclick = function() { speakFrench(item.french); };
         container.appendChild(card);
       });
     }
 
-    // Remove phrase by array index and update device memory
     function deletePhrase(event, index) {
-      // Prevent clicking 'X' from triggering speech audio
       event.stopPropagation();
-
       localPhrases.splice(index, 1);
       saveToLocalStorage(localPhrases);
       renderCards(localPhrases);
     }
 
-    // Save phrase array to device storage
     function saveToLocalStorage(phrases) {
       try {
         localStorage.setItem('saved_french_phrases', JSON.stringify(phrases));
@@ -162,7 +183,6 @@
       }
     }
 
-    // Main initialization: load local storage immediately
     async function initData() {
       const stored = localStorage.getItem('saved_french_phrases');
       
@@ -176,24 +196,32 @@
         }
       }
 
-      fetchRemoteData();
+      // If storage is totally empty, pull from Google Sheet
+      syncWithCloud();
     }
 
-    async function fetchRemoteData() {
-      const container = document.getElementById('list');
-      container.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">Loading initial phrases...</div>';
+    async function syncWithCloud() {
+      const syncBtn = document.getElementById('syncBtn');
+      syncBtn.style.transform = 'rotate(360deg)';
+      syncBtn.style.transition = 'transform 0.6s ease';
 
       try {
-        const response = await fetch(SCRIPT_URL, { method: 'GET', redirect: 'follow' });
+        const response = await fetch(SCRIPT_URL + '?t=' + Date.now(), { method: 'GET', redirect: 'follow' });
         const remoteData = await response.json();
 
         if (Array.isArray(remoteData)) {
+          // Cloud returns newest at bottom, so reverse for display
           localPhrases = remoteData.reverse();
           saveToLocalStorage(localPhrases);
           renderCards(localPhrases);
         }
       } catch (err) {
-        container.innerHTML = '<div style="text-align: center; color: #ef4444; padding: 20px;">Error loading phrases. Add a phrase above to get started.</div>';
+        alert('Could not sync with Google Sheets. Check connection.');
+      } finally {
+        setTimeout(() => {
+          syncBtn.style.transform = 'none';
+          syncBtn.style.transition = 'none';
+        }, 600);
       }
     }
 
