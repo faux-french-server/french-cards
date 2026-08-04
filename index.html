@@ -170,50 +170,48 @@
     }
 
     async function handleAddPhrase() {
-      const input = document.getElementById('phraseInput');
-      const phrase = input.value.trim();
+  const input = document.getElementById('phraseInput');
+  const phrase = input.value.trim();
+  
+  if (!phrase) return;
+
+  const btn = document.getElementById('addBtn');
+  btn.innerText = 'Translating...';
+  btn.disabled = true;
+
+  try {
+    // 1. Send text and wait for the translation back from Google
+    const response = await fetch('https://script.google.com/macros/s/AKfycbyFm4CMsRhjso3PoojdVf1X3ucuBdiznvcfNrcbEmqrnaoRYkOcn5vWbPOGYjaT4BLy/exec', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' }, // Avoids preflight CORS lock
+      body: JSON.stringify({ phrase: phrase })
+    });
+
+    const result = await response.json();
+
+    if (result.status === 'success') {
+      // 2. Insert the real French card right away at the top
+      const container = document.getElementById('list');
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = '<div class="french">' + escapeHtml(result.french) + '</div><div class="english">' + escapeHtml(result.english) + '</div>';
+      card.onclick = function() { speakFrench(result.french); };
       
-      if (!phrase) return;
-
-      const btn = document.getElementById('addBtn');
-      btn.innerText = 'Adding...';
-      btn.disabled = true;
-
-      try {
-        // 1. Send phrase to Google Apps Script
-        await fetch('https://script.google.com/macros/s/AKfycbyFm4CMsRhjso3PoojdVf1X3ucuBdiznvcfNrcbEmqrnaoRYkOcn5vWbPOGYjaT4BLy/exec', {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phrase: phrase })
-        });
-
-        // 2. Clear input & reset button text
-        input.value = '';
-        btn.innerText = 'Translate & Add';
-        btn.disabled = false;
-
-        // 3. OPTIMISTIC UPDATE: Add card immediately to top of screen so it feels instant
-        const container = document.getElementById('list');
-        const tempCard = document.createElement('div');
-        tempCard.className = 'card';
-        tempCard.style.opacity = '0.75'; // Soft visual hint while syncing in background
-        tempCard.innerHTML = '<div class="french">Syncing translation...</div><div class="english">' + escapeHtml(phrase) + '</div>';
-        
-        // Insert card at the top
-        container.insertBefore(tempCard, container.firstChild);
-
-        // 4. Delay full reload by 4 seconds to allow Google's CSV export cache to catch up
-        setTimeout(() => {
-          if (typeof loadData === 'function') loadData();
-        }, 4000);
-
-      } catch (error) {
-        alert('Error adding phrase');
-        btn.innerText = 'Translate & Add';
-        btn.disabled = false;
-      }
+      container.insertBefore(card, container.firstChild);
+    } else {
+      alert('Translation error: ' + result.message);
     }
+
+  } catch (error) {
+    // Fallback error alert
+    alert('Failed to connect to translation server.');
+  } finally {
+    input.value = '';
+    btn.innerText = 'Translate & Add';
+    btn.disabled = false;
+    // We NO LONGER call loadData() here, so slow CSV caching won't touch or wipe your screen!
+  }
+}
 
     function speakFrench(text) {
       if (!text) return;
