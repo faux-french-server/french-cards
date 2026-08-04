@@ -42,7 +42,6 @@
       background: #cbd5e1;
     }
 
-    /* Infinite spin animation during sync */
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
@@ -84,36 +83,25 @@
       opacity: 0.8;
     }    
 
+    #list {
+      overflow: hidden; /* Prevents horizontal scrollbars during swipe animation */
+    }
+
     .card { 
       position: relative;
       background: white; 
-      padding: 18px 40px 18px 18px;
+      padding: 18px;
       margin-bottom: 12px; 
       border-radius: 12px; 
       box-shadow: 0 2px 5px rgba(0,0,0,0.08); 
-      cursor: pointer; 
+      cursor: pointer;
+      touch-action: pan-y; /* Allows vertical scrolling while tracking horizontal gestures */
+      will-change: transform;
     }
-    .card:active { background: #e0f2fe; }
 
-    .delete-btn {
-      position: absolute;
-      top: 10px;
-      right: 12px;
-      width: 26px;
-      height: 26px;
-      line-height: 24px;
-      text-align: center;
-      font-size: 14px;
-      font-weight: bold;
-      color: #94a3b8;
-      background: #f1f5f9;
-      border-radius: 50%;
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .delete-btn:active {
-      background: #ef4444;
-      color: white;
+    /* Smooth transition when sliding out or snapping back */
+    .card.animating {
+      transition: transform 0.25s ease-out, opacity 0.25s ease-out;
     }
 
     .french { font-size: 21px; font-weight: bold; color: #1e3a8a; margin-bottom: 5px; }
@@ -129,7 +117,7 @@
 
   <div class="add-phrase-container">
     <input type="text" id="phraseInput" placeholder="Enter new phrase..." />
-    <button id="addBtn" onclick="handleAddPhrase()">Translate & Add</button>
+    <button id="addBtn" onclick="handleAddPhrase()">Translate</button>
   </div>
 
   <div id="list"></div>
@@ -169,26 +157,94 @@
         let card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = `
-          <div class="delete-btn" onclick="deletePhrase(event, ${index})">✕</div>
           <div class="french">${escapeHtml(item.french)}</div>
           <div class="english">${escapeHtml(item.english)}</div>
         `;
-        card.onclick = function() { speakFrench(item.french); };
+
+        // Add swipe gesture handlers
+        attachSwipeHandler(card, index);
+
         container.appendChild(card);
       });
     }
 
-    async function deletePhrase(event, index) {
-      event.stopPropagation();
+    function attachSwipeHandler(card, index) {
+      let startX = 0;
+      let startY = 0;
+      let currentX = 0;
+      let isSwiping = false;
 
+      card.addEventListener('touchstart', (e) => {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        isSwiping = false;
+        card.classList.remove('animating');
+      }, { passive: true });
+
+      card.addEventListener('touchmove', (e) => {
+        let touchX = e.touches[0].clientX;
+        let touchY = e.touches[0].clientY;
+        
+        let deltaX = touchX - startX;
+        let deltaY = touchY - startY;
+
+        // Ensure vertical scrolling isn't interrupted by minor side motions
+        if (!isSwiping && Math.abs(deltaY) > Math.abs(deltaX)) {
+          return;
+        }
+
+        // Only allow swiping to the RIGHT
+        if (deltaX > 0) {
+          isSwiping = true;
+          currentX = deltaX;
+          card.style.transform = `translateX(${deltaX}px)`;
+          card.style.opacity = Math.max(0.2, 1 - (deltaX / 300));
+        }
+      }, { passive: true });
+
+      card.addEventListener('touchend', () => {
+        card.classList.add('animating');
+
+        // Threshold to trigger delete: swipe right past 110 pixels
+        if (isSwiping && currentX > 110) {
+          card.style.transform = 'translateX(100vw)';
+          card.style.opacity = '0';
+
+          setTimeout(() => {
+            deletePhrase(index);
+          }, 250);
+        } else {
+          // Snap back if threshold wasn't reached
+          card.style.transform = 'translateX(0px)';
+          card.style.opacity = '1';
+
+          // If it was just a clean tap, play audio
+          if (!isSwiping) {
+            speakFrench(localPhrases[index].french);
+          }
+        }
+
+        currentX = 0;
+        isSwiping = false;
+      });
+
+      // Desktop fallback click
+      card.onclick = function() {
+        if (!isSwiping && !('ontouchstart' in window)) {
+          speakFrench(localPhrases[index].french);
+        }
+      };
+    }
+
+    async function deletePhrase(index) {
       const itemToDelete = localPhrases[index];
 
-      // 1. Remove locally immediately for instant feedback
+      // 1. Delete locally immediately
       localPhrases.splice(index, 1);
       saveToLocalStorage(localPhrases);
       renderCards(localPhrases);
 
-      // 2. Send request to delete from Google Sheets in the background
+      // 2. Delete from Google Sheet in background
       try {
         await fetch(SCRIPT_URL, {
           method: 'POST',
@@ -225,14 +281,11 @@
         }
       }
 
-      // If storage is empty, pull from Google Sheet
       syncWithCloud();
     }
 
     async function syncWithCloud() {
       const syncBtn = document.getElementById('syncBtn');
-      
-      // Add spinning animation class
       syncBtn.classList.add('spinning');
 
       try {
@@ -241,7 +294,6 @@
         const remoteData = await response.json();
 
         if (Array.isArray(remoteData)) {
-          // Cloud returns newest at bottom, so reverse for display
           localPhrases = remoteData.reverse();
           saveToLocalStorage(localPhrases);
           renderCards(localPhrases);
@@ -249,7 +301,6 @@
       } catch (err) {
         alert('Could not sync with Google Sheets. Check connection.');
       } finally {
-        // Stop spinning animation once sync completes
         syncBtn.classList.remove('spinning');
       }
     }
@@ -293,7 +344,7 @@
       } catch (error) {
         alert('Failed to connect to translation server.');
       } finally {
-        btn.innerText = 'Translate & Add';
+        btn.innerText = 'Translate';
         btn.disabled = false;
       }
     }
