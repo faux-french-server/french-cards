@@ -40,9 +40,43 @@
   transition: transform 0.1s ease;
 }
 
+.add-phrase-container {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  max-width: 400px;
+  margin: 0 auto 20px auto;
+}
+
+.add-phrase-container input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  font-size: 15px;
+  outline: none;
+}
+
+.add-phrase-container button {
+  padding: 10px 16px;
+  background-color: #007aff;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.add-phrase-container button:active {
+  opacity: 0.8;
+}    
+
 .shortcut-btn:active {
   transform: scale(0.96);
 }
+
+
     .card { background: white; padding: 18px; margin-bottom: 12px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.08); cursor: pointer; }
     .card:active { background: #e0f2fe; }
     .french { font-size: 21px; font-weight: bold; color: #1e3a8a; margin-bottom: 5px; }
@@ -53,10 +87,10 @@
 
   <h2 id="title" onclick="loadData()">🇫🇷 French Phrases</h2>
 
-  <div class="shortcut-btn-container">
-  <a href="shortcuts://run-shortcut?name=Add%20phrase" class="shortcut-btn">Translate New Phrase</a>
+<div class="add-phrase-container">
+  <input type="text" id="phraseInput" placeholder="Enter new phrase..." />
+  <button id="addBtn" onclick="handleAddPhrase()">Translate & Add</button>
 </div>
-
   <div id="list">Loading...</div>
 
   <script>
@@ -167,6 +201,41 @@ function speakFrench(text) {
     window.webkit.messageHandlers.nativeSpeak.postMessage(text);
     return;
   }
+
+  async function handleAddPhrase() {
+  const input = document.getElementById('phraseInput');
+  const phrase = input.value.trim();
+  
+  if (!phrase) return;
+
+  const btn = document.getElementById('addBtn');
+  btn.innerText = 'Adding...';
+  btn.disabled = true;
+
+  try {
+    // Replace YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL with your Web App URL
+    await fetch('YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL', {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phrase: phrase })
+    });
+
+    input.value = '';
+    btn.innerText = 'Translate & Add';
+    btn.disabled = false;
+
+    // Reload list after adding
+    setTimeout(() => {
+      if (typeof loadData === 'function') loadData();
+    }, 1500);
+
+  } catch (error) {
+    alert('Error adding phrase');
+    btn.innerText = 'Translate & Add';
+    btn.disabled = false;
+  }
+}
 
   // 2. Fallback for regular web browsers
   if (!('speechSynthesis' in window)) return;
