@@ -134,25 +134,31 @@
       return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     }
 
-    function speakFrench(text) {
-      if (!text) return;
-      if (!('speechSynthesis' in window)) return;
+function speakFrench(text) {
+  if (!text) return;
 
-      if (!frenchVoice) loadVoices();
+  // 1. If running inside native iOS app, send text to Swift AVSpeechSynthesizer
+  if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeSpeak) {
+    window.webkit.messageHandlers.nativeSpeak.postMessage(text);
+    return;
+  }
 
-      window.speechSynthesis.cancel();
+  // 2. Fallback for regular web browsers
+  if (!('speechSynthesis' in window)) return;
+  if (!frenchVoice) loadVoices();
 
-      let utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'fr-FR';
-      utterance.rate = 0.88; 
-      utterance.pitch = 0.95; 
+  window.speechSynthesis.cancel();
+  let utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'fr-FR';
+  utterance.rate = 0.88;
+  utterance.pitch = 0.95;
 
-      if (frenchVoice) {
-        utterance.voice = frenchVoice;
-      }
+  if (frenchVoice) {
+    utterance.voice = frenchVoice;
+  }
 
-      window.speechSynthesis.speak(utterance);
-    }
+  window.speechSynthesis.speak(utterance);
+}
 
     loadData();
   </script>
