@@ -168,12 +168,31 @@
       });
     }
 
-    function deletePhrase(event, index) {
-      event.stopPropagation();
-      localPhrases.splice(index, 1);
-      saveToLocalStorage(localPhrases);
-      renderCards(localPhrases);
-    }
+async function deletePhrase(event, index) {
+  event.stopPropagation();
+
+  const itemToDelete = localPhrases[index];
+
+  // 1. Remove locally immediately for instant feedback
+  localPhrases.splice(index, 1);
+  saveToLocalStorage(localPhrases);
+  renderCards(localPhrases);
+
+  // 2. Send request to delete from Google Sheets in the background
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'delete',
+        english: itemToDelete.english,
+        french: itemToDelete.french
+      })
+    });
+  } catch (e) {
+    console.error('Failed to sync deletion with Google Sheet', e);
+  }
+}
 
     function saveToLocalStorage(phrases) {
       try {
