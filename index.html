@@ -42,6 +42,16 @@
       background: #cbd5e1;
     }
 
+    /* Infinite spin animation during sync */
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .spinning {
+      animation: spin 0.8s linear infinite;
+    }
+
     .add-phrase-container {
       display: flex;
       gap: 8px;
@@ -168,31 +178,31 @@
       });
     }
 
-async function deletePhrase(event, index) {
-  event.stopPropagation();
+    async function deletePhrase(event, index) {
+      event.stopPropagation();
 
-  const itemToDelete = localPhrases[index];
+      const itemToDelete = localPhrases[index];
 
-  // 1. Remove locally immediately for instant feedback
-  localPhrases.splice(index, 1);
-  saveToLocalStorage(localPhrases);
-  renderCards(localPhrases);
+      // 1. Remove locally immediately for instant feedback
+      localPhrases.splice(index, 1);
+      saveToLocalStorage(localPhrases);
+      renderCards(localPhrases);
 
-  // 2. Send request to delete from Google Sheets in the background
-  try {
-    await fetch(SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'delete',
-        english: itemToDelete.english,
-        french: itemToDelete.french
-      })
-    });
-  } catch (e) {
-    console.error('Failed to sync deletion with Google Sheet', e);
-  }
-}
+      // 2. Send request to delete from Google Sheets in the background
+      try {
+        await fetch(SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({
+            action: 'delete',
+            english: itemToDelete.english,
+            french: itemToDelete.french
+          })
+        });
+      } catch (e) {
+        console.error('Failed to sync deletion with Google Sheet', e);
+      }
+    }
 
     function saveToLocalStorage(phrases) {
       try {
@@ -215,17 +225,19 @@ async function deletePhrase(event, index) {
         }
       }
 
-      // If storage is totally empty, pull from Google Sheet
+      // If storage is empty, pull from Google Sheet
       syncWithCloud();
     }
 
     async function syncWithCloud() {
       const syncBtn = document.getElementById('syncBtn');
-      syncBtn.style.transform = 'rotate(360deg)';
-      syncBtn.style.transition = 'transform 0.6s ease';
+      
+      // Add spinning animation class
+      syncBtn.classList.add('spinning');
 
       try {
-        const response = await fetch(SCRIPT_URL + '?t=' + Date.now(), { method: 'GET', redirect: 'follow' });
+        const freshUrl = SCRIPT_URL + (SCRIPT_URL.includes('?') ? '&' : '?') + 'cacheBust=' + Date.now();
+        const response = await fetch(freshUrl, { method: 'GET', redirect: 'follow' });
         const remoteData = await response.json();
 
         if (Array.isArray(remoteData)) {
@@ -237,10 +249,8 @@ async function deletePhrase(event, index) {
       } catch (err) {
         alert('Could not sync with Google Sheets. Check connection.');
       } finally {
-        setTimeout(() => {
-          syncBtn.style.transform = 'none';
-          syncBtn.style.transition = 'none';
-        }, 600);
+        // Stop spinning animation once sync completes
+        syncBtn.classList.remove('spinning');
       }
     }
 
