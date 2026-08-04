@@ -48,8 +48,39 @@
       opacity: 0.8;
     }    
 
-    .card { background: white; padding: 18px; margin-bottom: 12px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.08); cursor: pointer; }
+    /* Card Layout & Delete Button */
+    .card { 
+      position: relative;
+      background: white; 
+      padding: 18px 40px 18px 18px; /* Extra right padding so text doesn't hit the X */
+      margin-bottom: 12px; 
+      border-radius: 12px; 
+      box-shadow: 0 2px 5px rgba(0,0,0,0.08); 
+      cursor: pointer; 
+    }
     .card:active { background: #e0f2fe; }
+
+    .delete-btn {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      width: 26px;
+      height: 26px;
+      line-height: 24px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: bold;
+      color: #94a3b8;
+      background: #f1f5f9;
+      border-radius: 50%;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .delete-btn:active {
+      background: #ef4444;
+      color: white;
+    }
+
     .french { font-size: 21px; font-weight: bold; color: #1e3a8a; margin-bottom: 5px; }
     .english { font-size: 16px; color: #64748b; }
   </style>
@@ -97,13 +128,29 @@
         return;
       }
 
-      phrases.forEach(item => {
+      phrases.forEach((item, index) => {
         let card = document.createElement('div');
         card.className = 'card';
-        card.innerHTML = '<div class="french">' + escapeHtml(item.french) + '</div><div class="english">' + escapeHtml(item.english) + '</div>';
+        card.innerHTML = `
+          <div class="delete-btn" onclick="deletePhrase(event, ${index})">✕</div>
+          <div class="french">${escapeHtml(item.french)}</div>
+          <div class="english">${escapeHtml(item.english)}</div>
+        `;
+        
+        // Tap card to speak audio
         card.onclick = function() { speakFrench(item.french); };
         container.appendChild(card);
       });
+    }
+
+    // Remove phrase by array index and update device memory
+    function deletePhrase(event, index) {
+      // Prevent clicking 'X' from triggering speech audio
+      event.stopPropagation();
+
+      localPhrases.splice(index, 1);
+      saveToLocalStorage(localPhrases);
+      renderCards(localPhrases);
     }
 
     // Save phrase array to device storage
@@ -115,7 +162,7 @@
       }
     }
 
-    // Main initialization: load local storage immediately, sync remote in background if empty
+    // Main initialization: load local storage immediately
     async function initData() {
       const stored = localStorage.getItem('saved_french_phrases');
       
@@ -123,13 +170,12 @@
         try {
           localPhrases = JSON.parse(stored);
           renderCards(localPhrases);
-          return; // Loaded locally instantly! No fetch needed.
+          return;
         } catch (e) {
           console.error('Error parsing local storage');
         }
       }
 
-      // Fallback: If device memory is empty, fetch initial data from Google once
       fetchRemoteData();
     }
 
@@ -142,7 +188,7 @@
         const remoteData = await response.json();
 
         if (Array.isArray(remoteData)) {
-          localPhrases = remoteData.reverse(); // Newest first
+          localPhrases = remoteData.reverse();
           saveToLocalStorage(localPhrases);
           renderCards(localPhrases);
         }
@@ -167,7 +213,6 @@
       btn.disabled = true;
 
       try {
-        // 1. Send phrase to Apps Script for translation & Google Sheet backup
         const response = await fetch(SCRIPT_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain' },
@@ -179,13 +224,8 @@
         if (result.status === 'success') {
           const newCard = { english: result.english, french: result.french };
 
-          // 2. Add to top of local array
           localPhrases.unshift(newCard);
-
-          // 3. Save to device memory
           saveToLocalStorage(localPhrases);
-
-          // 4. Update screen instantly
           renderCards(localPhrases);
 
           input.value = '';
