@@ -66,7 +66,7 @@
 
   <div class="add-phrase-container">
     <input type="text" id="phraseInput" placeholder="Enter new phrase..." />
-    <button id="addBtn" onclick="handleAddPhrase()">Translate</button>
+    <button id="addBtn" onclick="handleAddPhrase()">Translate & Add</button>
   </div>
 
   <div id="list">Loading...</div>
@@ -125,7 +125,7 @@
       titleElem.innerHTML = '🔄 Updating...';
 
       try {
-        const freshUrl = SHEET_CSV_URL + (SHEET_CSV_URL.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
+        const freshUrl = SHEET_CSV_URL + (SHEET_CSV_URL.includes('?') ? '&' : '?') + 'cacheBust=' + Date.now();
         const response = await fetch(freshUrl);
         if (!response.ok) throw new Error('Network response failed');
         
@@ -180,6 +180,7 @@
       btn.disabled = true;
 
       try {
+        // 1. Send phrase to Google Apps Script
         await fetch('https://script.google.com/macros/s/AKfycbyFm4CMsRhjso3PoojdVf1X3ucuBdiznvcfNrcbEmqrnaoRYkOcn5vWbPOGYjaT4BLy/exec', {
           method: 'POST',
           mode: 'no-cors',
@@ -187,14 +188,25 @@
           body: JSON.stringify({ phrase: phrase })
         });
 
+        // 2. Clear input & reset button text
         input.value = '';
         btn.innerText = 'Translate & Add';
         btn.disabled = false;
 
-        // Reload list after adding
+        // 3. OPTIMISTIC UPDATE: Add card immediately to top of screen so it feels instant
+        const container = document.getElementById('list');
+        const tempCard = document.createElement('div');
+        tempCard.className = 'card';
+        tempCard.style.opacity = '0.75'; // Soft visual hint while syncing in background
+        tempCard.innerHTML = '<div class="french">Syncing translation...</div><div class="english">' + escapeHtml(phrase) + '</div>';
+        
+        // Insert card at the top
+        container.insertBefore(tempCard, container.firstChild);
+
+        // 4. Delay full reload by 4 seconds to allow Google's CSV export cache to catch up
         setTimeout(() => {
           if (typeof loadData === 'function') loadData();
-        }, 1500);
+        }, 4000);
 
       } catch (error) {
         alert('Error adding phrase');
