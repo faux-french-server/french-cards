@@ -257,7 +257,7 @@
     }
 
     function handleSlowPlay(e, index) {
-      // Prevent card click audio event from firing when clicking the turtle button
+      // Stop the regular card click event from firing
       e.stopPropagation();
       unlockAudioOnIOS();
       speakFrench(localPhrases[index].french, 0.5);
@@ -270,7 +270,7 @@
       let isSwiping = false;
 
       card.addEventListener('touchstart', (e) => {
-        // Don't register swipe if touching buttons directly
+        // Don't register card touch if user pressed a button
         if (e.target.closest('.delete-btn') || e.target.closest('.slow-btn')) return;
 
         startX = e.touches[0].clientX;
@@ -318,7 +318,7 @@
           card.style.transform = 'translateX(0px)';
           card.style.opacity = '1';
 
-          // If it was just a clean tap, play audio at normal speed
+          // Regular tap on the card plays normal speed (0.88x)
           if (!isSwiping) {
             speakFrench(localPhrases[index].french, 0.88);
           }
@@ -331,7 +331,7 @@
       // Desktop fallback click
       card.onclick = function(e) {
         // Ignore clicks directly on action buttons
-        if (e.target && (e.target.classList.contains('delete-btn') || e.target.classList.contains('slow-btn'))) return;
+        if (e.target && (e.target.closest('.delete-btn') || e.target.closest('.slow-btn'))) return;
 
         if (!isSwiping && !('ontouchstart' in window)) {
           speakFrench(localPhrases[index].french, 0.88);
@@ -453,7 +453,7 @@
           input.value = '';
 
           // Read out the French phrase automatically
-          speakFrench(result.french);
+          speakFrench(result.french, 0.88);
         } else {
           alert('Translation error: ' + (result.message || 'Unknown error'));
         }
@@ -478,17 +478,18 @@
     function speakFrench(text, playbackRate = 0.88) {
       if (!text) return;
 
-      // Handle native iOS app WebKit bridge
+      // Handle Native iOS WebKit message handlers if present
       if (window.webkit && window.webkit.messageHandlers) {
         if (playbackRate < 0.8 && window.webkit.messageHandlers.nativeSpeakSlow) {
           window.webkit.messageHandlers.nativeSpeakSlow.postMessage(text);
           return;
         } else if (window.webkit.messageHandlers.nativeSpeak) {
-          window.webkit.messageHandlers.nativeSpeak.postMessage(JSON.stringify({ text: text, rate: playbackRate }));
+          window.webkit.messageHandlers.nativeSpeak.postMessage(text);
           return;
         }
       }
 
+      // Browser Web Speech API fallback
       if (!('speechSynthesis' in window)) return;
       if (!frenchVoice) loadVoices();
 
