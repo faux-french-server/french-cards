@@ -130,10 +130,10 @@
     </button>
   </div>
 
-  <div class="add-phrase-container">
-    <input type="text" id="phraseInput" placeholder="Enter new phrase..." />
-    <button id="addBtn" onclick="handleAddPhrase()">Translate</button>
-  </div>
+  <form class="add-phrase-container" onsubmit="event.preventDefault(); handleAddPhrase();">
+    <input type="text" id="phraseInput" placeholder="Enter new phrase..." onkeydown="handleKeyPress(event)" />
+    <button type="submit" id="addBtn">Translate</button>
+  </form>
 
   <div id="list"></div>
 
@@ -323,6 +323,13 @@
     function escapeHtml(str) {
       if (!str) return '';
       return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function handleKeyPress(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleAddPhrase();
+      }
     }
 
     async function handleAddPhrase() {
