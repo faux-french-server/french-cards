@@ -63,11 +63,12 @@
     <button id="addBtn" onclick="handleAddPhrase()">Translate & Add</button>
   </div>
 
-  <div id="list">Loading...</div>
+  <div id="list"></div>
 
   <script>
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFm4CMsRhjso3PoojdVf1X3ucuBdiznvcfNrcbEmqrnaoRYkOcn5vWbPOGYjaT4BLy/exec';
     let frenchVoice = null;
+    let localPhrases = [];
 
     function loadVoices() {
       if ('speechSynthesis' in window) {
@@ -86,35 +87,67 @@
       loadVoices();
     }
 
-    async function loadData() {
-      let container = document.getElementById('list');
-      container.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">Loading phrases...</div>';
+    // Render cards array to DOM
+    function renderCards(phrases) {
+      const container = document.getElementById('list');
+      container.innerHTML = '';
+
+      if (!phrases || phrases.length === 0) {
+        container.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">No phrases saved. Add one above!</div>';
+        return;
+      }
+
+      phrases.forEach(item => {
+        let card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = '<div class="french">' + escapeHtml(item.french) + '</div><div class="english">' + escapeHtml(item.english) + '</div>';
+        card.onclick = function() { speakFrench(item.french); };
+        container.appendChild(card);
+      });
+    }
+
+    // Save phrase array to device storage
+    function saveToLocalStorage(phrases) {
+      try {
+        localStorage.setItem('saved_french_phrases', JSON.stringify(phrases));
+      } catch (e) {
+        console.error('Could not save to localStorage', e);
+      }
+    }
+
+    // Main initialization: load local storage immediately, sync remote in background if empty
+    async function initData() {
+      const stored = localStorage.getItem('saved_french_phrases');
+      
+      if (stored) {
+        try {
+          localPhrases = JSON.parse(stored);
+          renderCards(localPhrases);
+          return; // Loaded locally instantly! No fetch needed.
+        } catch (e) {
+          console.error('Error parsing local storage');
+        }
+      }
+
+      // Fallback: If device memory is empty, fetch initial data from Google once
+      fetchRemoteData();
+    }
+
+    async function fetchRemoteData() {
+      const container = document.getElementById('list');
+      container.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">Loading initial phrases...</div>';
 
       try {
-        // Fetch live data directly from Apps Script API (bypasses slow CSV CDN caching)
-        const response = await fetch(SCRIPT_URL);
-        const validCards = await response.json();
+        const response = await fetch(SCRIPT_URL, { method: 'GET', redirect: 'follow' });
+        const remoteData = await response.json();
 
-        container.innerHTML = '';
-
-        if (!validCards || validCards.length === 0) {
-          container.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">No phrases found. Add one above!</div>';
-          return;
+        if (Array.isArray(remoteData)) {
+          localPhrases = remoteData.reverse(); // Newest first
+          saveToLocalStorage(localPhrases);
+          renderCards(localPhrases);
         }
-
-        // Show newest phrases at the top
-        validCards.reverse();
-
-        validCards.forEach(item => {
-          let card = document.createElement('div');
-          card.className = 'card';
-          card.innerHTML = '<div class="french">' + escapeHtml(item.french) + '</div><div class="english">' + escapeHtml(item.english) + '</div>';
-          card.onclick = function() { speakFrench(item.french); };
-          container.appendChild(card);
-        });
-
       } catch (err) {
-        container.innerHTML = '<div style="text-align: center; color: #ef4444; padding: 20px;">Error loading phrases.</div>';
+        container.innerHTML = '<div style="text-align: center; color: #ef4444; padding: 20px;">Error loading phrases. Add a phrase above to get started.</div>';
       }
     }
 
@@ -134,7 +167,7 @@
       btn.disabled = true;
 
       try {
-        // 1. Send text to Google Apps Script and receive instant translation JSON
+        // 1. Send phrase to Apps Script for translation & Google Sheet backup
         const response = await fetch(SCRIPT_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain' },
@@ -144,19 +177,18 @@
         const result = await response.json();
 
         if (result.status === 'success') {
-          // If this is the first phrase added to an empty sheet, clear placeholder text
-          const container = document.getElementById('list');
-          if (container.innerText.includes('No phrases found') || container.innerText.includes('Loading')) {
-            container.innerHTML = '';
-          }
+          const newCard = { english: result.english, french: result.french };
 
-          // 2. Insert translated phrase card directly onto screen
-          const card = document.createElement('div');
-          card.className = 'card';
-          card.innerHTML = '<div class="french">' + escapeHtml(result.french) + '</div><div class="english">' + escapeHtml(result.english) + '</div>';
-          card.onclick = function() { speakFrench(result.french); };
-          
-          container.insertBefore(card, container.firstChild);
+          // 2. Add to top of local array
+          localPhrases.unshift(newCard);
+
+          // 3. Save to device memory
+          saveToLocalStorage(localPhrases);
+
+          // 4. Update screen instantly
+          renderCards(localPhrases);
+
+          input.value = '';
         } else {
           alert('Translation error: ' + (result.message || 'Unknown error'));
         }
@@ -164,7 +196,6 @@
       } catch (error) {
         alert('Failed to connect to translation server.');
       } finally {
-        input.value = '';
         btn.innerText = 'Translate & Add';
         btn.disabled = false;
       }
@@ -194,7 +225,7 @@
       window.speechSynthesis.speak(utterance);
     }
 
-    loadData();
+    initData();
   </script>
 </body>
 </html>
