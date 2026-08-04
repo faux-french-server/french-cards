@@ -112,8 +112,35 @@
       transition: transform 0.25s ease-out, opacity 0.25s ease-out;
     }
 
-    .french { font-size: 21px; font-weight: bold; color: #1e3a8a; margin-bottom: 5px; }
+    .french { font-size: 21px; font-weight: bold; color: #1e3a8a; margin-bottom: 5px; padding-right: 25px; }
     .english { font-size: 16px; color: #64748b; }
+
+    /* Web-Only Delete "X" Button */
+    .delete-btn {
+      display: none; /* Hidden by default (e.g. on Native iOS app) */
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      background: none;
+      border: none;
+      font-size: 22px;
+      color: #94a3b8;
+      cursor: pointer;
+      padding: 4px 8px;
+      line-height: 1;
+      border-radius: 50%;
+      transition: color 0.2s ease, background-color 0.2s ease;
+    }
+
+    .delete-btn:hover {
+      color: #ef4444;
+      background-color: #fee2e2;
+    }
+
+    /* Show "X" button ONLY when the page is running on the Web Browser */
+    body.is-web .delete-btn {
+      display: block;
+    }
   </style>
 </head>
 <body>
@@ -141,6 +168,12 @@
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFm4CMsRhjso3PoojdVf1X3ucuBdiznvcfNrcbEmqrnaoRYkOcn5vWbPOGYjaT4BLy/exec';
     let frenchVoice = null;
     let localPhrases = [];
+
+    // Detect if running on standard Web vs iOS Native WebKit Container
+    const isNativeApp = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeSpeak);
+    if (!isNativeApp) {
+      document.body.classList.add('is-web');
+    }
 
     function loadVoices() {
       if ('speechSynthesis' in window) {
@@ -172,6 +205,7 @@
         let card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = `
+          <button class="delete-btn" onclick="handleWebDelete(event, ${index})" title="Delete Phrase">&times;</button>
           <div class="french">${escapeHtml(item.french)}</div>
           <div class="english">${escapeHtml(item.english)}</div>
         `;
@@ -181,6 +215,12 @@
 
         container.appendChild(card);
       });
+    }
+
+    function handleWebDelete(e, index) {
+      // Prevent card click audio event from firing when clicking the "X"
+      e.stopPropagation();
+      deletePhrase(index);
     }
 
     function attachSwipeHandler(card, index) {
@@ -244,7 +284,10 @@
       });
 
       // Desktop fallback click
-      card.onclick = function() {
+      card.onclick = function(e) {
+        // Ignore clicks directly on the delete "X" button
+        if (e.target.classList.contains('delete-btn')) return;
+
         if (!isSwiping && !('ontouchstart' in window)) {
           speakFrench(localPhrases[index].french);
         }
