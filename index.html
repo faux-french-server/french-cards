@@ -386,6 +386,9 @@
       
       if (!phrase) return;
 
+      // Pre-warm audio engine immediately on user gesture to bypass iOS WebKit restrictions
+      unlockAudioOnIOS();
+
       const btn = document.getElementById('addBtn');
       btn.innerText = 'Translating...';
       btn.disabled = true;
@@ -408,7 +411,7 @@
 
           input.value = '';
 
-          // Read out the French phrase automatically upon addition
+          // Read out the French phrase automatically
           speakFrench(result.french);
         } else {
           alert('Translation error: ' + (result.message || 'Unknown error'));
@@ -419,6 +422,15 @@
       } finally {
         btn.innerText = 'Translate';
         btn.disabled = false;
+      }
+    }
+
+    // Helper to unlock speech engine during the active tap/click event on iOS Web Safari
+    function unlockAudioOnIOS() {
+      if ('speechSynthesis' in window && !window.webkit?.messageHandlers?.nativeSpeak) {
+        let silentUtterance = new SpeechSynthesisUtterance('');
+        silentUtterance.volume = 0;
+        window.speechSynthesis.speak(silentUtterance);
       }
     }
 
