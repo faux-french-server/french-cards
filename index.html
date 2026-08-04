@@ -3,8 +3,6 @@
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>French Phrases</title>
-  
-  <script src="config.js"></script>
 
   <style>
     body { font-family: -apple-system, sans-serif; padding: 15px; background: #f4f4f9; margin: 0; }
@@ -15,12 +13,8 @@
       font-size: 26px; 
       margin-top: 10px; 
       margin-bottom: 20px;
-      cursor: pointer;
       user-select: none;
-      -webkit-tap-highlight-color: transparent;
-      transition: opacity 0.15s ease;
     }
-    h2:active { opacity: 0.5; }
 
     .add-phrase-container {
       display: flex;
@@ -62,7 +56,7 @@
 </head>
 <body>
 
-  <h2 id="title" onclick="loadData()">🇫🇷 French Phrases</h2>
+  <h2 id="title">🇫🇷 French Phrases</h2>
 
   <div class="add-phrase-container">
     <input type="text" id="phraseInput" placeholder="Enter new phrase..." />
@@ -72,12 +66,12 @@
   <div id="list">Loading...</div>
 
   <script>
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFm4CMsRhjso3PoojdVf1X3ucuBdiznvcfNrcbEmqrnaoRYkOcn5vWbPOGYjaT4BLy/exec';
     let frenchVoice = null;
 
     function loadVoices() {
       if ('speechSynthesis' in window) {
         let voices = window.speechSynthesis.getVoices();
-        
         let frVoices = voices.filter(v => v.lang.startsWith('fr'));
         
         frenchVoice = frVoices.find(v => v.name.includes('Thomas')) || 
@@ -92,65 +86,24 @@
       loadVoices();
     }
 
-    function parseCSVLine(line) {
-      let values = [];
-      let currentValue = '';
-      let insideQuotes = false;
-
-      for (let i = 0; i < line.length; i++) {
-        let char = line[i];
-
-        if (char === '"') {
-          if (insideQuotes && line[i + 1] === '"') {
-            currentValue += '"';
-            i++;
-          } else {
-            insideQuotes = !insideQuotes;
-          }
-        } else if (char === ',' && !insideQuotes) {
-          values.push(currentValue.trim());
-          currentValue = '';
-        } else {
-          currentValue += char;
-        }
-      }
-      values.push(currentValue.trim());
-      return values;
-    }
-
     async function loadData() {
-  let container = document.getElementById('list');
-  container.innerHTML = 'Loading...';
+      let container = document.getElementById('list');
+      container.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">Loading phrases...</div>';
 
-  try {
-    // Fetches live JSON directly from your Apps Script URL
-    const response = await fetch('https://script.google.com/macros/s/AKfycbyFm4CMsRhjso3PoojdVf1X3ucuBdiznvcfNrcbEmqrnaoRYkOcn5vWbPOGYjaT4BLy/exec');
-    const validCards = await response.json();
+      try {
+        // Fetch live data directly from Apps Script API (bypasses slow CSV CDN caching)
+        const response = await fetch(SCRIPT_URL);
+        const validCards = await response.json();
 
-    // Reverse to show newest at the top
-    validCards.reverse();
-    container.innerHTML = '';
-
-    if (validCards.length === 0) {
-      container.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">No phrases found. Add one above!</div>';
-      return;
-    }
-
-    validCards.forEach(item => {
-      let card = document.createElement('div');
-      card.className = 'card';
-      card.innerHTML = '<div class="french">' + escapeHtml(item.french) + '</div><div class="english">' + escapeHtml(item.english) + '</div>';
-      card.onclick = function() { speakFrench(item.french); };
-      container.appendChild(card);
-    });
-
-  } catch (err) {
-    container.innerHTML = '<div style="text-align: center; color: #ef4444; padding: 20px;">Error loading phrases.</div>';
-  }
-}
-
-        validCards.reverse();
         container.innerHTML = '';
+
+        if (!validCards || validCards.length === 0) {
+          container.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">No phrases found. Add one above!</div>';
+          return;
+        }
+
+        // Show newest phrases at the top
+        validCards.reverse();
 
         validCards.forEach(item => {
           let card = document.createElement('div');
@@ -161,13 +114,12 @@
         });
 
       } catch (err) {
-        container.innerHTML = '<div style="text-align: center; color: #ef4444; padding: 20px;">Error loading phrases. Tap title to try again.</div>';
-      } finally {
-        titleElem.innerHTML = '🇫🇷 French Phrases';
+        container.innerHTML = '<div style="text-align: center; color: #ef4444; padding: 20px;">Error loading phrases.</div>';
       }
     }
 
     function escapeHtml(str) {
+      if (!str) return '';
       return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     }
 
@@ -178,40 +130,41 @@
       if (!phrase) return;
 
       const btn = document.getElementById('addBtn');
-      btn.innerText = 'Adding...';
+      btn.innerText = 'Translating...';
       btn.disabled = true;
 
       try {
-        // 1. Send phrase to Google Apps Script
-        await fetch('https://script.google.com/macros/s/AKfycbyFm4CMsRhjso3PoojdVf1X3ucuBdiznvcfNrcbEmqrnaoRYkOcn5vWbPOGYjaT4BLy/exec', {
+        // 1. Send text to Google Apps Script and receive instant translation JSON
+        const response = await fetch(SCRIPT_URL, {
           method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'text/plain' },
           body: JSON.stringify({ phrase: phrase })
         });
 
-        // 2. Clear input & reset button text
-        input.value = '';
-        btn.innerText = 'Translate & Add';
-        btn.disabled = false;
+        const result = await response.json();
 
-        // 3. OPTIMISTIC UPDATE: Add card immediately to top of screen so it feels instant
-        const container = document.getElementById('list');
-        const tempCard = document.createElement('div');
-        tempCard.className = 'card';
-        tempCard.style.opacity = '0.75'; // Soft visual hint while syncing in background
-        tempCard.innerHTML = '<div class="french">Syncing translation...</div><div class="english">' + escapeHtml(phrase) + '</div>';
-        
-        // Insert card at the top
-        container.insertBefore(tempCard, container.firstChild);
+        if (result.status === 'success') {
+          // If this is the first phrase added to an empty sheet, clear placeholder text
+          const container = document.getElementById('list');
+          if (container.innerText.includes('No phrases found') || container.innerText.includes('Loading')) {
+            container.innerHTML = '';
+          }
 
-        // 4. Delay full reload by 4 seconds to allow Google's CSV export cache to catch up
-        setTimeout(() => {
-          if (typeof loadData === 'function') loadData();
-        }, 4000);
+          // 2. Insert translated phrase card directly onto screen
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = '<div class="french">' + escapeHtml(result.french) + '</div><div class="english">' + escapeHtml(result.english) + '</div>';
+          card.onclick = function() { speakFrench(result.french); };
+          
+          container.insertBefore(card, container.firstChild);
+        } else {
+          alert('Translation error: ' + (result.message || 'Unknown error'));
+        }
 
       } catch (error) {
-        alert('Error adding phrase');
+        alert('Failed to connect to translation server.');
+      } finally {
+        input.value = '';
         btn.innerText = 'Translate & Add';
         btn.disabled = false;
       }
@@ -220,13 +173,11 @@
     function speakFrench(text) {
       if (!text) return;
 
-      // 1. Send text to Swift AVSpeechSynthesizer if running in native app
       if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeSpeak) {
         window.webkit.messageHandlers.nativeSpeak.postMessage(text);
         return;
       }
 
-      // 2. Fallback for regular web browsers
       if (!('speechSynthesis' in window)) return;
       if (!frenchVoice) loadVoices();
 
