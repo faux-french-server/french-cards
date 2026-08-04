@@ -112,15 +112,15 @@
       transition: transform 0.25s ease-out, opacity 0.25s ease-out;
     }
 
-    .french { font-size: 21px; font-weight: bold; color: #1e3a8a; margin-bottom: 5px; padding-right: 25px; }
+    .french { font-size: 21px; font-weight: bold; color: #1e3a8a; margin-bottom: 5px; padding-right: 30px; }
     .english { font-size: 16px; color: #64748b; }
 
-    /* Web-Only Delete "X" Button */
+    /* Delete "X" Button (Visible by default on Web/Desktop) */
     .delete-btn {
-      display: none; /* Hidden by default (e.g. on Native iOS app) */
+      display: block;
       position: absolute;
-      top: 14px;
-      right: 14px;
+      top: 12px;
+      right: 12px;
       background: none;
       border: none;
       font-size: 22px;
@@ -130,6 +130,7 @@
       line-height: 1;
       border-radius: 50%;
       transition: color 0.2s ease, background-color 0.2s ease;
+      z-index: 10;
     }
 
     .delete-btn:hover {
@@ -137,9 +138,9 @@
       background-color: #fee2e2;
     }
 
-    /* Show "X" button ONLY when the page is running on the Web Browser */
-    body.is-web .delete-btn {
-      display: block;
+    /* Hide Delete "X" Button ONLY inside the Native iOS App */
+    body.is-native-app .delete-btn {
+      display: none !important;
     }
   </style>
 </head>
@@ -169,11 +170,14 @@
     let frenchVoice = null;
     let localPhrases = [];
 
-    // Detect if running on standard Web vs iOS Native WebKit Container
-    const isNativeApp = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeSpeak);
-    if (!isNativeApp) {
-      document.body.classList.add('is-web');
+    // Hide X button ONLY if native iOS app is detected
+    function checkEnvironment() {
+      const isNativeApp = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeSpeak);
+      if (isNativeApp) {
+        document.body.classList.add('is-native-app');
+      }
     }
+    checkEnvironment();
 
     function loadVoices() {
       if ('speechSynthesis' in window) {
@@ -286,7 +290,7 @@
       // Desktop fallback click
       card.onclick = function(e) {
         // Ignore clicks directly on the delete "X" button
-        if (e.target.classList.contains('delete-btn')) return;
+        if (e.target && e.target.classList.contains('delete-btn')) return;
 
         if (!isSwiping && !('ontouchstart' in window)) {
           speakFrench(localPhrases[index].french);
@@ -327,6 +331,7 @@
     }
 
     async function initData() {
+      checkEnvironment();
       const stored = localStorage.getItem('saved_french_phrases');
       
       if (stored) {
