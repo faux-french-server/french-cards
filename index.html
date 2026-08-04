@@ -197,6 +197,7 @@
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFm4CMsRhjso3PoojdVf1X3ucuBdiznvcfNrcbEmqrnaoRYkOcn5vWbPOGYjaT4BLy/exec';
     let frenchVoice = null;
     let localPhrases = [];
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
     // Hide X button ONLY if native iOS app is detected
     function checkEnvironment() {
@@ -251,16 +252,14 @@
     }
 
     function handleWebDelete(e, index) {
-      // Prevent card click audio event from firing when clicking the "X"
       e.stopPropagation();
       deletePhrase(index);
     }
 
     function handleSlowPlay(e, index) {
-      // Stop the regular card click event from firing
       e.stopPropagation();
       unlockAudioOnIOS();
-      speakFrench(localPhrases[index].french, 0.5);
+      speakFrench(localPhrases[index].french, true);
     }
 
     function attachSwipeHandler(card, index) {
@@ -270,7 +269,6 @@
       let isSwiping = false;
 
       card.addEventListener('touchstart', (e) => {
-        // Don't register card touch if user pressed a button
         if (e.target.closest('.delete-btn') || e.target.closest('.slow-btn')) return;
 
         startX = e.touches[0].clientX;
@@ -286,12 +284,10 @@
         let deltaX = touchX - startX;
         let deltaY = touchY - startY;
 
-        // Ensure vertical scrolling isn't interrupted by minor side motions
         if (!isSwiping && Math.abs(deltaY) > Math.abs(deltaX)) {
           return;
         }
 
-        // Only allow swiping to the RIGHT
         if (deltaX > 0) {
           isSwiping = true;
           currentX = deltaX;
@@ -305,7 +301,6 @@
 
         card.classList.add('animating');
 
-        // Threshold to trigger delete: swipe right past 110 pixels
         if (isSwiping && currentX > 110) {
           card.style.transform = 'translateX(100vw)';
           card.style.opacity = '0';
@@ -314,13 +309,12 @@
             deletePhrase(index);
           }, 250);
         } else {
-          // Snap back if threshold wasn't reached
           card.style.transform = 'translateX(0px)';
           card.style.opacity = '1';
 
-          // Regular tap on the card plays normal speed (0.88x)
+          // Regular tap on the card plays normal speed
           if (!isSwiping) {
-            speakFrench(localPhrases[index].french, 0.88);
+            speakFrench(localPhrases[index].french, false);
           }
         }
 
@@ -328,13 +322,11 @@
         isSwiping = false;
       });
 
-      // Desktop fallback click
       card.onclick = function(e) {
-        // Ignore clicks directly on action buttons
         if (e.target && (e.target.closest('.delete-btn') || e.target.closest('.slow-btn'))) return;
 
         if (!isSwiping && !('ontouchstart' in window)) {
-          speakFrench(localPhrases[index].french, 0.88);
+          speakFrench(localPhrases[index].french, false);
         }
       };
     }
@@ -342,12 +334,10 @@
     async function deletePhrase(index) {
       const itemToDelete = localPhrases[index];
 
-      // 1. Delete locally immediately
       localPhrases.splice(index, 1);
       saveToLocalStorage(localPhrases);
       renderCards(localPhrases);
 
-      // 2. Delete from Google Sheet in background
       try {
         await fetch(SCRIPT_URL, {
           method: 'POST',
@@ -427,7 +417,6 @@
       
       if (!phrase) return;
 
-      // Pre-warm audio engine immediately on user gesture to bypass iOS WebKit restrictions
       unlockAudioOnIOS();
 
       const btn = document.getElementById('addBtn');
@@ -452,8 +441,7 @@
 
           input.value = '';
 
-          // Read out the French phrase automatically
-          speakFrench(result.french, 0.88);
+          speakFrench(result.french, false);
         } else {
           alert('Translation error: ' + (result.message || 'Unknown error'));
         }
@@ -466,7 +454,6 @@
       }
     }
 
-    // Helper to unlock speech engine during the active tap/click event on iOS Web Safari
     function unlockAudioOnIOS() {
       if ('speechSynthesis' in window && !window.webkit?.messageHandlers?.nativeSpeak) {
         let silentUtterance = new SpeechSynthesisUtterance('');
@@ -475,12 +462,12 @@
       }
     }
 
-    function speakFrench(text, playbackRate = 0.88) {
+    function speakFrench(text, isSlow = false) {
       if (!text) return;
 
-      // Handle Native iOS WebKit message handlers if present
+      // Handle Native iOS WebKit message handlers (if using Xcode/WKWebView native app)
       if (window.webkit && window.webkit.messageHandlers) {
-        if (playbackRate < 0.8 && window.webkit.messageHandlers.nativeSpeakSlow) {
+        if (isSlow && window.webkit.messageHandlers.nativeSpeakSlow) {
           window.webkit.messageHandlers.nativeSpeakSlow.postMessage(text);
           return;
         } else if (window.webkit.messageHandlers.nativeSpeak) {
@@ -489,14 +476,22 @@
         }
       }
 
-      // Browser Web Speech API fallback
+      // Browser Web Speech API fallback (Safari / Chrome)
       if (!('speechSynthesis' in window)) return;
       if (!frenchVoice) loadVoices();
 
       window.speechSynthesis.cancel();
+
       let utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'fr-FR';
-      utterance.rate = playbackRate;
+
+      // iOS WebSpeech rates are lower than Android/Desktop rates
+      if (isIOS) {
+        utterance.rate = isSlow ? 0.25 : 0.52;
+      } else {
+        utterance.rate = isSlow ? 0.5 : 0.88;
+      }
+
       utterance.pitch = 0.95;
 
       if (frenchVoice) {
