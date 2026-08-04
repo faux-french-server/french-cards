@@ -407,6 +407,9 @@
           renderCards(localPhrases);
 
           input.value = '';
+
+          // Read out the French phrase automatically upon addition
+          speakFrench(result.french);
         } else {
           alert('Translation error: ' + (result.message || 'Unknown error'));
         }
