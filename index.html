@@ -70,36 +70,6 @@
       animation: spin 0.8s linear infinite;
     }
 
-    /* Mode Selector Segmented Control */
-    .mode-selector {
-      display: flex;
-      background: #e2e8f0;
-      border-radius: 10px;
-      padding: 3px;
-      max-width: 400px;
-      margin: 0 auto 10px auto;
-    }
-
-    .mode-btn {
-      flex: 1;
-      border: none;
-      background: none;
-      padding: 6px 0;
-      font-size: 13px;
-      font-weight: 600;
-      color: #64748b;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .mode-btn.active {
-      background: white;
-      color: #1e293b;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-
     .add-phrase-container {
       display: flex;
       gap: 8px;
@@ -338,13 +308,6 @@
       </button>
     </div>
 
-    <!-- Translation Mode Selector -->
-    <div class="mode-selector">
-      <button class="mode-btn" id="modeDeepl" onclick="setMode('deepl')">Standard</button>
-      <button class="mode-btn" id="modeSlang" onclick="setMode('slang')">Slang</button>
-      <button class="mode-btn active" id="modeBoth" onclick="setMode('both')">Both</button>
-    </div>
-
     <form class="add-phrase-container" onsubmit="event.preventDefault(); handleAddPhrase();">
       <input type="text" id="phraseInput" placeholder="Enter new phrase..." onkeydown="handleKeyPress(event)" />
       <button type="submit" id="addBtn">Translate</button>
@@ -371,7 +334,6 @@
     let localPhrases = [];
     let pendingDeleteIndex = null;
     let pendingDeleteCard = null;
-    let currentMode = 'both';
 
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
@@ -382,14 +344,6 @@
       }
     }
     checkEnvironment();
-
-    function setMode(mode) {
-      currentMode = mode;
-      document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
-      if (mode === 'deepl') document.getElementById('modeDeepl').classList.add('active');
-      if (mode === 'slang') document.getElementById('modeSlang').classList.add('active');
-      if (mode === 'both') document.getElementById('modeBoth').classList.add('active');
-    }
 
     function loadVoices() {
       if ('speechSynthesis' in window) {
@@ -423,7 +377,7 @@
 
         let contentHtml = `<button class="delete-btn" onclick="handleWebDelete(event, ${index}, this.parentElement)" title="Delete Phrase">&times;</button>`;
 
-        // Render Standard French if available
+        // Render Standard French
         if (item.french) {
           contentHtml += `
             <div class="translation-row">
@@ -437,7 +391,7 @@
           `;
         }
 
-        // Render Slang French if available
+        // Render Slang French
         if (item.slang) {
           contentHtml += `
             <div class="translation-row">
@@ -691,10 +645,7 @@
         const response = await fetch(SCRIPT_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain' },
-          body: JSON.stringify({ 
-            phrase: phrase,
-            mode: currentMode 
-          })
+          body: JSON.stringify({ phrase: phrase })
         });
 
         const result = await response.json();
