@@ -63,6 +63,13 @@
       text-transform: capitalize;
     }
 
+    .category-filter-select option {
+      background-repeat: no-repeat;
+      background-position: 8px center;
+      background-size: 12px 12px;
+      padding-left: 26px;
+    }
+
     .sync-btn {
       background: #e2e8f0;
       border: none;
@@ -820,47 +827,11 @@
     }
     checkEnvironment();
 
-    // HSL-based precise color classifier mapping hex values accurately to colored emojis
-    function getColoredCircleEmoji(hex) {
-      if (!hex || !hex.startsWith('#') || hex.length !== 7) return '⚪';
-
-      // Fixed String Slicing Offsets (#RRGGBB)
-      const r = parseInt(hex.substr(1, 2), 16) / 255;
-      const g = parseInt(hex.substr(3, 2), 16) / 255;
-      const b = parseInt(hex.substr(5, 2), 16) / 255;
-
-      const max = Math.max(r, g, b);
-      const min = Math.min(r, g, b);
-      let h, s, l = (max + min) / 2;
-
-      if (max === min) {
-        h = s = 0; // achromatic
-      } else {
-        const d = max - min;
-        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-        switch (max) {
-          case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-          case g: h = (b - r) / d + 2; break;
-          case b: h = (r - g) / d + 4; break;
-        }
-        h /= 6;
-      }
-
-      const hueDeg = h * 360;
-
-      if (l > 0.90 && s < 0.2) return '⚪';
-      if (l < 0.15) return '⬛';
-      if (s < 0.15) return '⚪';
-
-      if (hueDeg >= 345 || hueDeg < 15) return '🔴';
-      if (hueDeg >= 15 && hueDeg < 45) return '🟠';
-      if (hueDeg >= 45 && hueDeg < 70) return '🟡';
-      if (hueDeg >= 70 && hueDeg < 165) return '🟢';
-      if (hueDeg >= 165 && hueDeg < 260) return '🔵';
-      if (hueDeg >= 260 && hueDeg < 310) return '🟣';
-      if (hueDeg >= 310 && hueDeg < 345) return '🔴';
-
-      return '🟡';
+    // Generates an inline SVG data URL that matches the EXACT hex color perfectly
+    function getColorCircleDataUrl(hex) {
+      if (!hex) hex = '#cbd5e1';
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="${hex}" stroke="rgba(0,0,0,0.15)" stroke-width="1.5"/></svg>`;
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
     }
 
     // Map existing category colors from localPhrases and standard fallbacks
@@ -897,10 +868,11 @@
       activeCategories.forEach(cat => {
         const option = document.createElement('option');
         const catColor = categoryColors[cat] || defaultCategoryColors[cat] || '#cbd5e1';
-        const circleIcon = getColoredCircleEmoji(catColor);
-
+        
         option.value = cat;
-        option.textContent = `${circleIcon} ${cat.charAt(0).toUpperCase() + cat.slice(1)}`;
+        option.textContent = `  ${cat.charAt(0).toUpperCase() + cat.slice(1)}`;
+        option.style.backgroundImage = `url("${getColorCircleDataUrl(catColor)}")`;
+
         select.appendChild(option);
       });
 
@@ -1091,7 +1063,6 @@
       closeCategoryPickerModal();
     }
 
-    // Dynamic contrast calculator guarantees crisp, easily readable text on any pill background color
     function getContrastTextColor(hex) {
       if (!hex || !hex.startsWith('#') || hex.length !== 7) return null;
       const r = parseInt(hex.substr(1, 2), 16);
