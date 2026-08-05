@@ -767,18 +767,11 @@
       const activeCats = new Set();
       
       localPhrases.forEach(item => {
-        const cat = (item.category || 'other').trim().toLowerCase();
+        const cat = (item.category || '').trim().toLowerCase();
         if (cat) activeCats.add(cat);
       });
 
-      const sortedList = Array.from(activeCats).sort();
-
-      // Ensure fallback if array is empty
-      if (sortedList.length === 0) {
-        return ["evening", "morning", "other"];
-      }
-
-      return sortedList;
+      return Array.from(activeCats).sort();
     }
 
     function updateCategoryDropdowns() {
@@ -805,13 +798,11 @@
         select.value = 'all';
       }
 
-      // 2. Update Modal Quick-Picker Options
+      // 2. Update Modal Quick-Picker Options (Strictly non-empty active categories)
       const optionsContainer = document.getElementById('categoryPickerOptions');
       optionsContainer.innerHTML = '';
 
-      const pickerOptions = Array.from(new Set(["morning", "evening", "other", ...activeCategories])).sort();
-
-      pickerOptions.forEach(cat => {
+      activeCategories.forEach(cat => {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'category-option-btn';
@@ -953,7 +944,7 @@
       const filteredPhrases = phrases.map((item, originalIndex) => ({ ...item, originalIndex }))
         .filter(item => {
           if (currentCategoryFilter === 'all') return true;
-          const cat = (item.category || 'other').toLowerCase();
+          const cat = (item.category || '').toLowerCase();
           return cat === currentCategoryFilter;
         });
 
@@ -965,7 +956,7 @@
       filteredPhrases.forEach((item) => {
         const index = item.originalIndex;
         let card = document.createElement('div');
-        const cat = (item.category || 'other').toLowerCase();
+        const cat = (item.category || 'uncategorized').toLowerCase();
 
         // Study Mode: Hidden state
         if (isStudyMode && !revealedCardIndices.has(index)) {
