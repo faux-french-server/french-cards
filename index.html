@@ -5,7 +5,7 @@
   <title>French Phrases</title>
 
   <style>
-    body { font-family: -apple-system, sans-serif; padding: 0 15px 15px 15px; background: #f4f4f9; margin: 0; }
+    body { font-family: -apple-system, sans-serif; padding: 0 15px 15px 15px; background: #f4f4f9; margin: 0; color: #333; }
     
     /* Sticky Top Header Container */
     .sticky-header {
@@ -85,6 +85,8 @@
       border-radius: 10px;
       font-size: 15px;
       outline: none;
+      background: #ffffff;
+      color: #1e293b;
     }
 
     .add-phrase-container button {
@@ -300,6 +302,110 @@
     /* Hide Delete "X" Button ONLY inside the Native iOS App */
     body.is-native-app .delete-btn {
       display: none !important;
+    }
+
+    /* Automatic Dark Mode Styles */
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #0f172a;
+        color: #f8fafc;
+      }
+
+      .sticky-header {
+        background: #0f172a;
+        border-bottom-color: #334155;
+      }
+
+      h2 {
+        color: #f8fafc;
+      }
+
+      .sync-btn {
+        background: #1e293b;
+        color: #94a3b8;
+      }
+
+      .sync-btn:active {
+        background: #334155;
+      }
+
+      .add-phrase-container input {
+        background: #1e293b;
+        border-color: #334155;
+        color: #f8fafc;
+      }
+
+      .add-phrase-container input::placeholder {
+        color: #64748b;
+      }
+
+      .card {
+        background: #1e293b;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      }
+
+      .translation-label {
+        color: #64748b;
+      }
+
+      .french {
+        color: #60a5fa;
+      }
+
+      .french.slang-text {
+        color: #38bdf8;
+      }
+
+      .english {
+        color: #94a3b8;
+      }
+
+      .action-btn {
+        background: #334155;
+        border-color: #475569;
+        color: #cbd5e1;
+      }
+
+      .action-btn:hover {
+        background-color: #475569;
+      }
+
+      .action-btn:active {
+        background-color: #64748b;
+      }
+
+      .action-btn.copied {
+        background-color: #064e3b;
+        border-color: #059669;
+        color: #a7f3d0;
+      }
+
+      .delete-btn {
+        color: #64748b;
+      }
+
+      .delete-btn:hover {
+        color: #f87171;
+        background-color: #450a0a;
+      }
+
+      .modal-box {
+        background: #1e293b;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      }
+
+      .modal-title {
+        color: #f8fafc;
+      }
+
+      .modal-message {
+        color: #94a3b8;
+      }
+
+      .modal-btn-cancel {
+        background: #334155;
+        color: #cbd5e1;
+      }
     }
   </style>
 </head>
