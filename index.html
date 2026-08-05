@@ -26,22 +26,36 @@
     .header-container {
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: space-between;
       gap: 10px;
       margin-bottom: 10px;
     }
 
     h2 { 
       color: #333; 
-      font-size: 24px; 
+      font-size: 22px; 
       margin: 0;
       user-select: none;
+      white-space: nowrap;
     }
 
     .header-actions {
       display: flex;
       align-items: center;
       gap: 8px;
+    }
+
+    .category-filter-select {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 18px;
+      padding: 6px 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #334155;
+      cursor: pointer;
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
     .sync-btn {
@@ -57,6 +71,7 @@
       transition: transform 0.2s ease, background-color 0.2s ease;
       color: #475569;
       padding: 0;
+      flex-shrink: 0;
       -webkit-tap-highlight-color: transparent;
     }
 
@@ -105,25 +120,38 @@
 
     .add-phrase-container {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       justify-content: center;
-      max-width: 400px;
+      max-width: 500px;
       margin: 0 auto;
     }
 
     .add-phrase-container input {
       flex: 1;
-      padding: 10px 14px;
+      min-width: 0;
+      padding: 10px 12px;
       border: 1px solid #ccc;
       border-radius: 10px;
-      font-size: 15px;
+      font-size: 14px;
       outline: none;
       background: #ffffff;
       color: #1e293b;
     }
 
+    .category-add-select {
+      background: #ffffff;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      padding: 10px 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #334155;
+      outline: none;
+      cursor: pointer;
+    }
+
     .add-phrase-container button {
-      padding: 10px 16px;
+      padding: 10px 14px;
       background-color: #007aff;
       color: white;
       border: none;
@@ -131,6 +159,7 @@
       font-weight: 600;
       font-size: 14px;
       cursor: pointer;
+      white-space: nowrap;
     }
 
     .add-phrase-container button:active {
@@ -154,6 +183,35 @@
       will-change: transform;
       z-index: 1;
       transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+
+    /* Category Pill Badge */
+    .category-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 3px 8px;
+      border-radius: 12px;
+      margin-bottom: 8px;
+      background: #e2e8f0;
+      color: #475569;
+    }
+
+    .category-badge.morning {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .category-badge.evening {
+      background: #e0e7ff;
+      color: #3730a3;
+    }
+
+    .category-badge.other {
+      background: #f1f5f9;
+      color: #475569;
     }
 
     /* Revealed state styling in Study Mode */
@@ -391,6 +449,12 @@
         color: #f8fafc;
       }
 
+      .category-filter-select {
+        background: #1e293b;
+        border-color: #334155;
+        color: #cbd5e1;
+      }
+
       .sync-btn {
         background: #1e293b;
         color: #94a3b8;
@@ -412,7 +476,7 @@
         border-color: #007aff;
       }
 
-      .add-phrase-container input {
+      .add-phrase-container input, .category-add-select {
         background: #1e293b;
         border-color: #334155;
         color: #f8fafc;
@@ -425,6 +489,21 @@
       .card {
         background: #1e293b;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      }
+
+      .category-badge.morning {
+        background: #78350f;
+        color: #fef3c7;
+      }
+
+      .category-badge.evening {
+        background: #312e81;
+        color: #e0e7ff;
+      }
+
+      .category-badge.other {
+        background: #334155;
+        color: #cbd5e1;
       }
 
       .card.study-card {
@@ -520,6 +599,14 @@
     <div class="header-container">
       <h2>🇫🇷 French Phrases</h2>
       <div class="header-actions">
+        <!-- Category Filter Dropdown -->
+        <select class="category-filter-select" id="categoryFilter" onchange="filterByCategory()">
+          <option value="all">📁 All Categories</option>
+          <option value="morning">🌅 Morning</option>
+          <option value="evening">🌙 Evening</option>
+          <option value="other">💬 Other</option>
+        </select>
+
         <button class="study-btn" id="studyBtn" onclick="toggleStudyMode()">
           <span>🎴</span> Study Mode
         </button>
@@ -536,6 +623,14 @@
 
     <form class="add-phrase-container" onsubmit="event.preventDefault(); handleAddPhrase();">
       <input type="text" id="phraseInput" placeholder="Enter new phrase..." onkeydown="handleKeyPress(event)" />
+      
+      <!-- Category Selection on Phrase Creation -->
+      <select class="category-add-select" id="newPhraseCategory">
+        <option value="other">Other</option>
+        <option value="morning">Morning</option>
+        <option value="evening">Evening</option>
+      </select>
+
       <button type="submit" id="addBtn">Translate</button>
     </form>
   </div>
@@ -563,6 +658,7 @@
 
     let isStudyMode = false;
     let revealedCardIndices = new Set();
+    let currentCategoryFilter = 'all';
 
     const copyIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"></path><rect x="9" y="9" width="12" height="12" rx="2" ry="2"></rect></svg>`;
 
@@ -575,6 +671,12 @@
       }
     }
     checkEnvironment();
+
+    function filterByCategory() {
+      currentCategoryFilter = document.getElementById('categoryFilter').value;
+      revealedCardIndices.clear();
+      renderCards(localPhrases);
+    }
 
     function toggleStudyMode() {
       isStudyMode = !isStudyMode;
@@ -636,8 +738,23 @@
         return;
       }
 
-      phrases.forEach((item, index) => {
+      // Filter phrases based on dropdown selection
+      const filteredPhrases = phrases.map((item, originalIndex) => ({ ...item, originalIndex }))
+        .filter(item => {
+          if (currentCategoryFilter === 'all') return true;
+          const cat = (item.category || 'other').toLowerCase();
+          return cat === currentCategoryFilter;
+        });
+
+      if (filteredPhrases.length === 0) {
+        container.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">No phrases found in this category.</div>';
+        return;
+      }
+
+      filteredPhrases.forEach((item) => {
+        const index = item.originalIndex;
         let card = document.createElement('div');
+        const cat = (item.category || 'other').toLowerCase();
 
         // Study Mode: Hidden state (Show English prompt only)
         if (isStudyMode && !revealedCardIndices.has(index)) {
@@ -645,6 +762,7 @@
           
           let contentHtml = `<button class="delete-btn" onclick="handleWebDelete(event, ${index}, this.parentElement)" title="Delete Phrase">&times;</button>`;
           contentHtml += `
+            <div class="category-badge ${cat}">${cat}</div>
             <div class="english-prompt" onclick="revealStudyCard(${index}, localPhrases[${index}])">
               ${escapeHtml(item.english)}
             </div>
@@ -662,7 +780,6 @@
 
         if (isStudyMode) {
           card.onclick = (e) => {
-            // Flip back only if the user tapped on the empty card surface/padding
             if (!e.target.closest('.delete-btn') && 
                 !e.target.closest('.action-btn') && 
                 !e.target.closest('.french')) {
@@ -672,6 +789,7 @@
         }
 
         let contentHtml = `<button class="delete-btn" onclick="handleWebDelete(event, ${index}, this.parentElement)" title="Delete Phrase">&times;</button>`;
+        contentHtml += `<div class="category-badge ${cat}">${cat}</div>`;
 
         if (item.french) {
           contentHtml += `
@@ -924,7 +1042,9 @@
 
     async function handleAddPhrase() {
       const input = document.getElementById('phraseInput');
+      const categorySelect = document.getElementById('newPhraseCategory');
       const phrase = input.value.trim();
+      const category = categorySelect.value;
       
       if (!phrase) return;
 
@@ -938,7 +1058,10 @@
         const response = await fetch(SCRIPT_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain' },
-          body: JSON.stringify({ phrase: phrase })
+          body: JSON.stringify({ 
+            phrase: phrase,
+            category: category 
+          })
         });
 
         const result = await response.json();
@@ -947,7 +1070,8 @@
           const newCard = { 
             english: result.english, 
             french: result.french,
-            slang: result.slang
+            slang: result.slang,
+            category: category
           };
 
           localPhrases.unshift(newCard);
