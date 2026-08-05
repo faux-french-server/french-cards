@@ -60,6 +60,7 @@
       cursor: pointer;
       outline: none;
       -webkit-tap-highlight-color: transparent;
+      text-transform: capitalize;
     }
 
     .sync-btn {
@@ -444,6 +445,8 @@
       flex-direction: column;
       gap: 8px;
       margin-top: 15px;
+      max-height: 250px;
+      overflow-y: auto;
     }
 
     .category-option-btn {
@@ -455,7 +458,14 @@
       font-weight: 600;
       color: #334155;
       cursor: pointer;
+      text-transform: capitalize;
       transition: background-color 0.15s ease;
+    }
+
+    .category-option-btn.add-new-btn {
+      background: #eff6ff;
+      border-color: #93c5fd;
+      color: #1d4ed8;
     }
 
     .category-option-btn:active {
@@ -629,6 +639,12 @@
         color: #f8fafc;
       }
 
+      .category-option-btn.add-new-btn {
+        background: #1e3a8a;
+        border-color: #3b82f6;
+        color: #bfdbfe;
+      }
+
       .category-option-btn:active {
         background: #475569;
       }
@@ -656,9 +672,6 @@
     <div class="header-sub-row">
       <select class="category-filter-select" id="categoryFilter" onchange="filterByCategory()">
         <option value="all">📁 All Categories</option>
-        <option value="morning">🌅 Morning</option>
-        <option value="evening">🌙 Evening</option>
-        <option value="other">💬 Other</option>
       </select>
 
       <button class="study-btn" id="studyBtn" onclick="toggleStudyMode()">
@@ -692,10 +705,8 @@
     <div class="modal-box">
       <div class="modal-title">Change Category</div>
       <div class="modal-message">Select a category for this phrase:</div>
-      <div class="category-picker-options">
-        <button class="category-option-btn" onclick="updateCardCategory('morning')">🌅 Morning</button>
-        <button class="category-option-btn" onclick="updateCardCategory('evening')">🌙 Evening</button>
-        <button class="category-option-btn" onclick="updateCardCategory('other')">💬 Other</button>
+      <div class="category-picker-options" id="categoryPickerOptions">
+        <!-- Options injected dynamically -->
       </div>
       <div style="margin-top: 15px;">
         <button class="modal-btn modal-btn-cancel" style="width: 100%;" onclick="closeCategoryPickerModal()">Cancel</button>
@@ -707,6 +718,7 @@
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFm4CMsRhjso3PoojdVf1X3ucuBdiznvcfNrcbEmqrnaoRYkOcn5vWbPOGYjaT4BLy/exec';
     let frenchVoice = null;
     let localPhrases = [];
+    let categoriesList = ["morning", "evening", "other"];
     let pendingDeleteIndex = null;
     let pendingDeleteCard = null;
     let activeCategoryChangeIndex = null;
@@ -727,6 +739,69 @@
     }
     checkEnvironment();
 
+    function getCategoryEmoji(cat) {
+      switch (cat.toLowerCase()) {
+        case 'morning': return '🌅';
+        case 'evening': return '🌙';
+        case 'other': return '💬';
+        default: return '🏷️';
+      }
+    }
+
+    function updateCategoryDropdowns() {
+      // 1. Update Header Filter Dropdown
+      const select = document.getElementById('categoryFilter');
+      const selectedVal = currentCategoryFilter;
+      select.innerHTML = '<option value="all">📁 All Categories</option>';
+      
+      categoriesList.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat;
+        option.textContent = `${getCategoryEmoji(cat)} ${cat.charAt(0).toUpperCase() + cat.slice(1)}`;
+        select.appendChild(option);
+      });
+      select.value = selectedVal;
+
+      // 2. Update Modal Quick-Picker Options
+      const optionsContainer = document.getElementById('categoryPickerOptions');
+      optionsContainer.innerHTML = '';
+
+      categoriesList.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.className = 'category-option-btn';
+        btn.innerHTML = `${getCategoryEmoji(cat)} ${escapeHtml(cat)}`;
+        btn.onclick = () => updateCardCategory(cat);
+        optionsContainer.appendChild(btn);
+      });
+
+      // Add "➕ Add New Category" Option
+      const addNewBtn = document.createElement('button');
+      addNewBtn.className = 'category-option-btn add-new-btn';
+      addNewBtn.innerHTML = '➕ Add New Category...';
+      addNewBtn.onclick = handleAddNewCategory;
+      optionsContainer.appendChild(addNewBtn);
+    }
+
+    function registerCategory(newCat) {
+      const cleanCat = newCat.trim().toLowerCase();
+      if (cleanCat && !categoriesList.includes(cleanCat)) {
+        categoriesList.push(cleanCat);
+        saveCategoriesToLocalStorage(categoriesList);
+        updateCategoryDropdowns();
+      }
+      return cleanCat;
+    }
+
+    function handleAddNewCategory() {
+      const newCatPrompt = prompt('Enter new category name:');
+      if (newCatPrompt) {
+        const cleanCat = registerCategory(newCatPrompt);
+        if (cleanCat) {
+          updateCardCategory(cleanCat);
+        }
+      }
+    }
+
     function openCategoryPickerModal(e, index) {
       e.stopPropagation();
       activeCategoryChangeIndex = index;
@@ -741,7 +816,8 @@
     async function updateCardCategory(newCat) {
       if (activeCategoryChangeIndex !== null && localPhrases[activeCategoryChangeIndex]) {
         const item = localPhrases[activeCategoryChangeIndex];
-        item.category = newCat;
+        const cleanCat = registerCategory(newCat);
+        item.category = cleanCat;
         saveToLocalStorage(localPhrases);
         renderCards(localPhrases);
 
@@ -753,7 +829,7 @@
             body: JSON.stringify({
               action: 'updateCategory',
               english: item.english,
-              category: newCat
+              category: cleanCat
             })
           });
         } catch (e) {
@@ -1078,13 +1154,32 @@
       }
     }
 
+    function saveCategoriesToLocalStorage(cats) {
+      try {
+        localStorage.setItem('saved_french_categories', JSON.stringify(cats));
+      } catch (e) {
+        console.error('Could not save categories to localStorage', e);
+      }
+    }
+
     async function initData() {
       checkEnvironment();
+
+      const storedCats = localStorage.getItem('saved_french_categories');
+      if (storedCats) {
+        try {
+          categoriesList = JSON.parse(storedCats);
+        } catch (e) {}
+      }
+      updateCategoryDropdowns();
+
       const stored = localStorage.getItem('saved_french_phrases');
-      
       if (stored) {
         try {
           localPhrases = JSON.parse(stored);
+          localPhrases.forEach(p => {
+            if (p.category) registerCategory(p.category);
+          });
           renderCards(localPhrases);
           return;
         } catch (e) {
@@ -1104,11 +1199,24 @@
         const response = await fetch(freshUrl, { method: 'GET', redirect: 'follow' });
         const remoteData = await response.json();
 
+        let phrasesData = [];
         if (Array.isArray(remoteData)) {
-          localPhrases = remoteData.reverse();
-          saveToLocalStorage(localPhrases);
-          renderCards(localPhrases);
+          phrasesData = remoteData;
+        } else if (remoteData && remoteData.phrases) {
+          phrasesData = remoteData.phrases;
+          if (Array.isArray(remoteData.categories)) {
+            remoteData.categories.forEach(c => registerCategory(c));
+          }
         }
+
+        localPhrases = phrasesData.reverse();
+        localPhrases.forEach(p => {
+          if (p.category) registerCategory(p.category);
+        });
+
+        saveToLocalStorage(localPhrases);
+        renderCards(localPhrases);
+
       } catch (err) {
         alert('Could not sync with Google Sheets. Check connection.');
       } finally {
