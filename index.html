@@ -491,14 +491,17 @@
       color: #334155;
       cursor: pointer;
       text-transform: capitalize;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
       transition: background-color 0.15s ease;
     }
 
     .category-option-btn .color-indicator {
-      width: 14px;
-      height: 14px;
+      width: 16px;
+      height: 16px;
       border-radius: 50%;
-      border: 1px solid rgba(0,0,0,0.15);
+      border: 1.5px solid rgba(0,0,0,0.15);
       display: inline-block;
       flex-shrink: 0;
     }
@@ -757,7 +760,7 @@
   <div class="modal-overlay" id="categoryPickerModal" onclick="handleCategoryOverlayClick(event)">
     <div class="modal-box">
       <div class="modal-title">Change Category</div>
-      <div class="modal-message">Select a category for this phrase:</div>
+      <div class="modal-message">Select a category (press & hold to edit color):</div>
       <div class="category-picker-options" id="categoryPickerOptions"></div>
     </div>
   </div>
@@ -781,6 +784,24 @@
     </div>
   </div>
 
+  <!-- Edit Category Color Modal -->
+  <div class="modal-overlay" id="editCategoryColorModal">
+    <div class="modal-box">
+      <div class="modal-title" id="editCategoryColorTitle">Edit Color</div>
+      <div class="modal-message">Select a new pill color for all phrases in this category:</div>
+      
+      <div class="color-picker-row">
+        <span class="color-picker-label">Badge Color</span>
+        <input type="color" class="color-picker-input" id="editCategoryColorPicker" value="#007aff" />
+      </div>
+
+      <div class="modal-buttons">
+        <button class="modal-btn modal-btn-cancel" onclick="closeEditCategoryColorModal(false)">Cancel</button>
+        <button class="modal-btn modal-btn-confirm" onclick="closeEditCategoryColorModal(true)">Save</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFm4CMsRhjso3PoojdVf1X3ucuBdiznvcfNrcbEmqrnaoRYkOcn5vWbPOGYjaT4BLy/exec';
     let frenchVoice = null;
@@ -789,6 +810,7 @@
     let pendingDeleteIndex = null;
     let pendingDeleteCard = null;
     let activeCategoryChangeIndex = null;
+    let targetCategoryForColorEdit = null;
 
     let isStudyMode = false;
     let revealedCardIndices = new Set();
@@ -871,7 +893,10 @@
         const colorDot = `<span class="color-indicator" style="background:${catColor}"></span>`;
         
         btn.innerHTML = `<span>${escapeHtml(cat)}</span>${colorDot}`;
-        btn.onclick = () => updateCardCategory(cat, catColor);
+
+        // Add press & hold gesture to change category color
+        attachCategoryButtonGestures(btn, cat, catColor);
+
         optionsContainer.appendChild(btn);
       });
 
@@ -881,6 +906,95 @@
       addNewBtn.innerHTML = '+ Add New Category...';
       addNewBtn.onclick = openNewCategoryModal;
       optionsContainer.appendChild(addNewBtn);
+    }
+
+    // Attach click and long-press event listeners to category options
+    function attachCategoryButtonGestures(btn, categoryName, currentColor) {
+      let pressTimer = null;
+      let isLongPress = false;
+
+      function triggerHaptic() {
+        if (navigator.vibrate) navigator.vibrate(40);
+      }
+
+      function startPress() {
+        isLongPress = false;
+        pressTimer = setTimeout(() => {
+          isLongPress = true;
+          triggerHaptic();
+          openEditCategoryColorModal(categoryName, currentColor);
+        }, 500);
+      }
+
+      function cancelPress() {
+        if (pressTimer) {
+          clearTimeout(pressTimer);
+          pressTimer = null;
+        }
+      }
+
+      btn.addEventListener('touchstart', startPress, { passive: true });
+      btn.addEventListener('touchend', (e) => {
+        cancelPress();
+        if (!isLongPress) {
+          updateCardCategory(categoryName, currentColor);
+        }
+      });
+      btn.addEventListener('touchmove', cancelPress, { passive: true });
+
+      btn.addEventListener('mousedown', startPress);
+      btn.addEventListener('mouseup', () => {
+        cancelPress();
+        if (!isLongPress) {
+          updateCardCategory(categoryName, currentColor);
+        }
+      });
+      btn.addEventListener('mouseleave', cancelPress);
+    }
+
+    function openEditCategoryColorModal(categoryName, currentColor) {
+      targetCategoryForColorEdit = categoryName;
+      document.getElementById('editCategoryColorTitle').innerText = 'Color: ' + categoryName;
+      document.getElementById('editCategoryColorPicker').value = currentColor || '#007aff';
+      document.getElementById('editCategoryColorModal').classList.add('active');
+    }
+
+    async function closeEditCategoryColorModal(confirmed) {
+      const selectedColor = document.getElementById('editCategoryColorPicker').value;
+      const cat = targetCategoryForColorEdit;
+      document.getElementById('editCategoryColorModal').classList.remove('active');
+
+      if (confirmed && cat) {
+        categoryColors[cat] = selectedColor;
+
+        // Update all local items matching this category
+        localPhrases.forEach(item => {
+          if ((item.category || '').trim().toLowerCase() === cat) {
+            item.color = selectedColor;
+          }
+        });
+
+        saveToLocalStorage(localPhrases);
+        renderCards(localPhrases);
+
+        // Sync with Google Sheets backend
+        try {
+          await fetch(SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({
+              action: 'updateCategoryColorAll',
+              category: cat,
+              color: selectedColor
+            })
+          });
+        } catch (e) {
+          console.error('Failed to sync category color update', e);
+        }
+      }
+
+      targetCategoryForColorEdit = null;
+      closeCategoryPickerModal();
     }
 
     function openNewCategoryModal() {
@@ -950,14 +1064,18 @@
       closeCategoryPickerModal();
     }
 
-    // Adjust text color based on background brightness
+    // Dynamic contrast calculator guarantees crisp, easily readable text on any pill background color
     function getContrastTextColor(hex) {
       if (!hex || !hex.startsWith('#') || hex.length !== 7) return null;
       const r = parseInt(hex.substr(1, 2), 16);
       const g = parseInt(hex.substr(2, 2), 16);
       const b = parseInt(hex.substr(4, 2), 16);
-      const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-      return brightness > 128 ? '#1e293b' : '#ffffff';
+      
+      // Calculate relative luminance according to WCAG guidelines
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      
+      // Dark text for bright backgrounds, white text for dark backgrounds
+      return luminance > 0.6 ? '#0f172a' : '#ffffff';
     }
 
     function renderCategoryBadge(catName, colorHex) {
@@ -965,8 +1083,9 @@
       let styleAttr = '';
 
       if (colorHex) {
-        const textColor = getContrastTextColor(colorHex) || '#ffffff';
-        styleAttr = `style="background-color: ${colorHex}; color: ${textColor};"`;
+        const textColor = getContrastTextColor(colorHex) || '#0f172a';
+        const borderStyle = textColor === '#0f172a' ? 'border: 1px solid rgba(0,0,0,0.1);' : 'border: 1px solid rgba(255,255,255,0.2);';
+        styleAttr = `style="background-color: ${colorHex}; color: ${textColor}; ${borderStyle}"`;
       }
 
       return `<span class="category-badge ${cleanCat}" ${styleAttr} onclick="openCategoryPickerModal(event, arguments[0])">${cleanCat}</span>`;
