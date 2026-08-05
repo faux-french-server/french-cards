@@ -682,7 +682,7 @@
     <!-- Sub Row: Category Filter + Study Mode Toggle -->
     <div class="header-sub-row">
       <select class="category-filter-select" id="categoryFilter" onchange="filterByCategory()">
-        <option value="all">📁 All Categories</option>
+        <option value="all">All Categories</option>
       </select>
 
       <button class="study-btn" id="studyBtn" onclick="toggleStudyMode()">
@@ -762,15 +762,6 @@
     }
     checkEnvironment();
 
-    function getCategoryEmoji(cat) {
-      switch (cat.toLowerCase()) {
-        case 'morning': return '🌅';
-        case 'evening': return '🌙';
-        case 'other': return '💬';
-        default: return '🏷️';
-      }
-    }
-
     // Dynamic extraction: strictly categories assigned to 1 or more phrases
     function getActiveCategories() {
       const activeCats = new Set();
@@ -784,14 +775,13 @@
 
       // Ensure fallback if array is empty
       if (sortedList.length === 0) {
-        return ["morning", "evening", "other"];
+        return ["evening", "morning", "other"];
       }
 
       return sortedList;
     }
 
     function updateCategoryDropdowns() {
-      // Clean up legacy categories stored in old cache keys
       localStorage.removeItem('saved_french_categories');
 
       const activeCategories = getActiveCategories();
@@ -799,16 +789,15 @@
       // 1. Update Header Filter Dropdown
       const select = document.getElementById('categoryFilter');
       const previousSelected = currentCategoryFilter;
-      select.innerHTML = '<option value="all">📁 All Categories</option>';
+      select.innerHTML = '<option value="all">All Categories</option>';
       
       activeCategories.forEach(cat => {
         const option = document.createElement('option');
         option.value = cat;
-        option.textContent = `${getCategoryEmoji(cat)} ${cat.charAt(0).toUpperCase() + cat.slice(1)}`;
+        option.textContent = cat.charAt(0).toUpperCase() + cat.slice(1);
         select.appendChild(option);
       });
 
-      // If active filter no longer exists (e.g. phrase was re-categorized/deleted), reset filter to 'all'
       if (activeCategories.includes(previousSelected)) {
         select.value = previousSelected;
       } else {
@@ -820,23 +809,22 @@
       const optionsContainer = document.getElementById('categoryPickerOptions');
       optionsContainer.innerHTML = '';
 
-      // Standard base options + active custom categories
       const pickerOptions = Array.from(new Set(["morning", "evening", "other", ...activeCategories])).sort();
 
       pickerOptions.forEach(cat => {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'category-option-btn';
-        btn.innerHTML = `${getCategoryEmoji(cat)} ${escapeHtml(cat)}`;
+        btn.innerHTML = escapeHtml(cat);
         btn.onclick = () => updateCardCategory(cat);
         optionsContainer.appendChild(btn);
       });
 
-      // Add "➕ Add New Category" Option
+      // Add "Add New Category" Option
       const addNewBtn = document.createElement('button');
       addNewBtn.type = 'button';
       addNewBtn.className = 'category-option-btn add-new-btn';
-      addNewBtn.innerHTML = '➕ Add New Category...';
+      addNewBtn.innerHTML = '+ Add New Category...';
       addNewBtn.onclick = openNewCategoryModal;
       optionsContainer.appendChild(addNewBtn);
     }
@@ -877,7 +865,6 @@
         saveToLocalStorage(localPhrases);
         renderCards(localPhrases);
 
-        // Sync category update to Google Sheet
         try {
           await fetch(SCRIPT_URL, {
             method: 'POST',
