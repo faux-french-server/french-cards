@@ -158,7 +158,6 @@
 
     /* Study Mode Card Styling */
     .card.study-card {
-      cursor: pointer;
       border: 2px dashed #cbd5e1;
       background: #f8fafc;
       text-align: center;
@@ -169,6 +168,16 @@
       font-size: 18px;
       font-weight: 600;
       color: #1e293b;
+      cursor: pointer;
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 8px;
+      -webkit-tap-highlight-color: rgba(0, 122, 255, 0.1);
+      transition: background-color 0.15s ease;
+    }
+
+    .card.study-card .english-prompt:active {
+      background-color: #e2e8f0;
     }
 
     .card.study-card .tap-hint {
@@ -178,6 +187,7 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
       font-weight: 700;
+      pointer-events: none;
     }
 
     .card.animating {
@@ -420,6 +430,10 @@
         color: #f8fafc;
       }
 
+      .card.study-card .english-prompt:active {
+        background-color: #334155;
+      }
+
       .card.study-card .tap-hint {
         color: #64748b;
       }
@@ -537,7 +551,6 @@
     let pendingDeleteIndex = null;
     let pendingDeleteCard = null;
 
-    // Study Mode state management
     let isStudyMode = false;
     let revealedCardIndices = new Set();
 
@@ -565,6 +578,21 @@
       }
 
       renderCards(localPhrases);
+    }
+
+    function revealStudyCard(index, item) {
+      revealedCardIndices.add(index);
+      renderCards(localPhrases);
+
+      unlockAudioOnIOS();
+
+      if (item.french && item.slang) {
+        speakFrenchSequence(item.french, item.slang);
+      } else if (item.french) {
+        speakFrench(item.french, false);
+      } else if (item.slang) {
+        speakFrench(item.slang, false);
+      }
     }
 
     function loadVoices() {
@@ -599,15 +627,16 @@
         // Study Mode: Hidden state (Show English prompt only)
         if (isStudyMode && !revealedCardIndices.has(index)) {
           card.className = 'card study-card';
-          card.innerHTML = `
-            <div class="english-prompt">${escapeHtml(item.english)}</div>
-            <div class="tap-hint">Tap to reveal translation 👆</div>
+          
+          let contentHtml = `<button class="delete-btn" onclick="handleWebDelete(event, ${index}, this.parentElement)" title="Delete Phrase">&times;</button>`;
+          contentHtml += `
+            <div class="english-prompt" onclick="revealStudyCard(${index}, localPhrases[${index}])">
+              ${escapeHtml(item.english)}
+            </div>
+            <div class="tap-hint">Tap text to reveal & listen 👆</div>
           `;
-          card.onclick = () => {
-            revealedCardIndices.add(index);
-            renderCards(localPhrases);
-          };
-
+          
+          card.innerHTML = contentHtml;
           attachSwipeHandler(card, index);
           container.appendChild(card);
           return;
@@ -898,7 +927,6 @@
           localPhrases.unshift(newCard);
           saveToLocalStorage(localPhrases);
 
-          // In study mode, automatically reveal newly added card at index 0
           if (isStudyMode) {
             revealedCardIndices.add(0);
           }
