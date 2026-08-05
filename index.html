@@ -503,7 +503,7 @@
       background: #e2e8f0;
     }
 
-    /* Color Selection Row inside New Category Modal */
+    /* Color Selection Row inside New/Edit Category Modal */
     .color-picker-row {
       display: flex;
       align-items: center;
@@ -746,7 +746,7 @@
   <div class="modal-overlay" id="categoryPickerModal" onclick="handleCategoryOverlayClick(event)">
     <div class="modal-box">
       <div class="modal-title">Change Category</div>
-      <div class="modal-message">Select a category (press & hold to edit color):</div>
+      <div class="modal-message">Select a category (press & hold to edit):</div>
       <div class="category-picker-options" id="categoryPickerOptions"></div>
     </div>
   </div>
@@ -770,20 +770,22 @@
     </div>
   </div>
 
-  <!-- Edit Category Color Modal -->
-  <div class="modal-overlay" id="editCategoryColorModal">
+  <!-- Edit Category (Name + Color) Modal -->
+  <div class="modal-overlay" id="editCategoryModal">
     <div class="modal-box">
-      <div class="modal-title" id="editCategoryColorTitle">Edit Color</div>
-      <div class="modal-message">Select a new pill color for all phrases in this category:</div>
+      <div class="modal-title">Edit Category</div>
+      <div class="modal-message">Update name and badge color:</div>
       
+      <input type="text" class="modal-input" id="editCategoryNameInput" placeholder="Category name..." />
+
       <div class="color-picker-row">
         <span class="color-picker-label">Badge Color</span>
         <input type="color" class="color-picker-input" id="editCategoryColorPicker" value="#007aff" />
       </div>
 
       <div class="modal-buttons">
-        <button class="modal-btn modal-btn-cancel" onclick="closeEditCategoryColorModal(false)">Cancel</button>
-        <button class="modal-btn modal-btn-confirm" onclick="closeEditCategoryColorModal(true)">Save</button>
+        <button class="modal-btn modal-btn-cancel" onclick="closeEditCategoryModal(false)">Cancel</button>
+        <button class="modal-btn modal-btn-confirm" onclick="closeEditCategoryModal(true)">Save</button>
       </div>
     </div>
   </div>
@@ -796,7 +798,7 @@
     let pendingDeleteIndex = null;
     let pendingDeleteCard = null;
     let activeCategoryChangeIndex = null;
-    let targetCategoryForColorEdit = null;
+    let targetCategoryForEdit = null;
 
     let isStudyMode = false;
     let revealedCardIndices = new Set();
@@ -915,7 +917,7 @@
         pressTimer = setTimeout(() => {
           isLongPress = true;
           triggerHaptic();
-          openEditCategoryColorModal(categoryName, currentColor);
+          openEditCategoryModal(categoryName, currentColor);
         }, 500);
       }
 
@@ -947,23 +949,29 @@
       btn.addEventListener('mouseleave', cancelPress);
     }
 
-    function openEditCategoryColorModal(categoryName, currentColor) {
-      targetCategoryForColorEdit = categoryName;
-      document.getElementById('editCategoryColorTitle').innerText = 'Color: ' + categoryName;
+    function openEditCategoryModal(categoryName, currentColor) {
+      targetCategoryForEdit = categoryName;
+      document.getElementById('editCategoryNameInput').value = categoryName;
       document.getElementById('editCategoryColorPicker').value = currentColor || '#007aff';
-      document.getElementById('editCategoryColorModal').classList.add('active');
+      document.getElementById('editCategoryModal').classList.add('active');
     }
 
-    async function closeEditCategoryColorModal(confirmed) {
+    async function closeEditCategoryModal(confirmed) {
+      const oldCat = targetCategoryForEdit;
+      const newCatName = document.getElementById('editCategoryNameInput').value.trim().toLowerCase();
       const selectedColor = document.getElementById('editCategoryColorPicker').value;
-      const cat = targetCategoryForColorEdit;
-      document.getElementById('editCategoryColorModal').classList.remove('active');
 
-      if (confirmed && cat) {
-        categoryColors[cat] = selectedColor;
+      document.getElementById('editCategoryModal').classList.remove('active');
+
+      if (confirmed && oldCat && newCatName) {
+        if (oldCat !== newCatName) {
+          delete categoryColors[oldCat];
+        }
+        categoryColors[newCatName] = selectedColor;
 
         localPhrases.forEach(item => {
-          if ((item.category || '').trim().toLowerCase() === cat) {
+          if ((item.category || '').trim().toLowerCase() === oldCat) {
+            item.category = newCatName;
             item.color = selectedColor;
           }
         });
@@ -976,17 +984,18 @@
             method: 'POST',
             headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify({
-              action: 'updateCategoryColorAll',
-              category: cat,
+              action: 'renameCategoryAll',
+              oldCategory: oldCat,
+              newCategory: newCatName,
               color: selectedColor
             })
           });
         } catch (e) {
-          console.error('Failed to sync category color update', e);
+          console.error('Failed to sync category rename update', e);
         }
       }
 
-      targetCategoryForColorEdit = null;
+      targetCategoryForEdit = null;
       closeCategoryPickerModal();
     }
 
