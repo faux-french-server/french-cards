@@ -166,6 +166,83 @@
       background-color: #cbd5e1;
     }
 
+    /* Custom Confirm Modal Styling */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-box {
+      background: white;
+      border-radius: 14px;
+      padding: 20px;
+      width: 80%;
+      max-width: 300px;
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+      transform: scale(0.9);
+      transition: transform 0.2s ease;
+    }
+
+    .modal-overlay.active .modal-box {
+      transform: scale(1);
+    }
+
+    .modal-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+
+    .modal-message {
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 20px;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .modal-btn {
+      flex: 1;
+      padding: 10px 0;
+      border-radius: 8px;
+      border: none;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .modal-btn-cancel {
+      background: #f1f5f9;
+      color: #475569;
+    }
+
+    .modal-btn-delete {
+      background: #ef4444;
+      color: white;
+    }
+
     /* Hide Delete "X" Button ONLY inside the Native iOS App */
     body.is-native-app .delete-btn {
       display: none !important;
@@ -193,10 +270,25 @@
 
   <div id="list"></div>
 
+  <!-- Custom Confirm Modal -->
+  <div class="modal-overlay" id="confirmModal">
+    <div class="modal-box">
+      <div class="modal-title">Delete Phrase</div>
+      <div class="modal-message">Are you sure you want to delete this phrase?</div>
+      <div class="modal-buttons">
+        <button class="modal-btn modal-btn-cancel" onclick="closeConfirmModal(false)">Cancel</button>
+        <button class="modal-btn modal-btn-delete" onclick="closeConfirmModal(true)">Delete</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFm4CMsRhjso3PoojdVf1X3ucuBdiznvcfNrcbEmqrnaoRYkOcn5vWbPOGYjaT4BLy/exec';
     let frenchVoice = null;
     let localPhrases = [];
+    let pendingDeleteIndex = null;
+    let pendingDeleteCard = null;
+
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
     // Hide X button ONLY if native iOS app is detected
@@ -238,7 +330,7 @@
         let card = document.createElement('div');
         card.className = 'card';
         card.innerHTML = `
-          <button class="delete-btn" onclick="handleWebDelete(event, ${index})" title="Delete Phrase">&times;</button>
+          <button class="delete-btn" onclick="handleWebDelete(event, ${index}, this.parentElement)" title="Delete Phrase">&times;</button>
           <div class="french">${escapeHtml(item.french)}</div>
           <div class="english">${escapeHtml(item.english)}</div>
           <button class="slow-btn" onclick="handleSlowPlay(event, ${index})" title="Play slowly">🐢</button>
@@ -251,19 +343,52 @@
       });
     }
 
-    function handleWebDelete(e, index) {
+    function handleWebDelete(e, index, cardElement) {
       e.stopPropagation();
-      setTimeout(() => {
-        if (confirm('Are you sure you want to delete this phrase?')) {
-          deletePhrase(index);
-        }
-      }, 10);
+      openConfirmModal(index, cardElement);
     }
 
     function handleSlowPlay(e, index) {
       e.stopPropagation();
       unlockAudioOnIOS();
       speakFrench(localPhrases[index].french, true);
+    }
+
+    function openConfirmModal(index, cardElement) {
+      pendingDeleteIndex = index;
+      pendingDeleteCard = cardElement;
+      document.getElementById('confirmModal').classList.add('active');
+    }
+
+    function closeConfirmModal(confirmed) {
+      document.getElementById('confirmModal').classList.remove('active');
+
+      if (confirmed && pendingDeleteIndex !== null) {
+        if (pendingDeleteCard) {
+          pendingDeleteCard.style.transform = 'translateX(100vw)';
+          pendingDeleteCard.style.opacity = '0';
+          setTimeout(() => {
+            deletePhrase(pendingDeleteIndex);
+            resetModalState();
+          }, 200);
+        } else {
+          deletePhrase(pendingDeleteIndex);
+          resetModalState();
+        }
+      } else {
+        // User cancelled: return card to regular position
+        if (pendingDeleteCard) {
+          pendingDeleteCard.classList.add('animating');
+          pendingDeleteCard.style.transform = 'translateX(0px)';
+          pendingDeleteCard.style.opacity = '1';
+        }
+        resetModalState();
+      }
+    }
+
+    function resetModalState() {
+      pendingDeleteIndex = null;
+      pendingDeleteCard = null;
     }
 
     function attachSwipeHandler(card, index) {
@@ -306,20 +431,8 @@
         card.classList.add('animating');
 
         if (isSwiping && currentX > 110) {
-          // Instantly trigger confirm while the touch interaction is still active
-          const confirmed = window.confirm('Are you sure you want to delete this phrase?');
-
-          if (confirmed) {
-            card.style.transform = 'translateX(100vw)';
-            card.style.opacity = '0';
-            setTimeout(() => {
-              deletePhrase(index);
-            }, 200);
-          } else {
-            // Snap card back to normal position immediately on cancel
-            card.style.transform = 'translateX(0px)';
-            card.style.opacity = '1';
-          }
+          // Open custom dialog instead of native browser confirm
+          openConfirmModal(index, card);
         } else {
           card.style.transform = 'translateX(0px)';
           card.style.opacity = '1';
