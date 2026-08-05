@@ -14,7 +14,6 @@
       left: 0;
       right: 0;
       background-color: #f4f4f9;
-      /* Automatically adjusts for Dynamic Island / Notch on iOS */
       padding-top: calc(env(safe-area-inset-top, 20px) + 10px);
       padding-bottom: 12px;
       padding-left: 15px;
@@ -111,7 +110,6 @@
 
     #list {
       overflow: hidden;
-      /* Dynamic offset matching safe area height + header height */
       padding-top: calc(env(safe-area-inset-top, 20px) + 125px);
     }
 
@@ -781,6 +779,7 @@
 
           input.value = '';
 
+          // Sequence playback handled dynamically
           if (result.french && result.slang) {
             speakFrenchSequence(result.french, result.slang);
           } else if (result.french) {
@@ -802,11 +801,16 @@
     }
 
     function speakFrenchSequence(firstText, secondText) {
+      // Native iOS WebKit Handler Dynamic Timing Fix
       if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeSpeak) {
         window.webkit.messageHandlers.nativeSpeak.postMessage("NORMAL|" + firstText);
+        
+        // Dynamic duration based on character length + baseline offset
+        const estimatedDurationMs = Math.max(2500, (firstText.length * 90) + 1000);
+        
         setTimeout(() => {
           window.webkit.messageHandlers.nativeSpeak.postMessage("NORMAL|" + secondText);
-        }, 2500);
+        }, estimatedDurationMs);
         return;
       }
 
@@ -827,7 +831,7 @@
           utterance2.rate = isIOS ? 0.52 : 0.88;
           if (frenchVoice) utterance2.voice = frenchVoice;
           window.speechSynthesis.speak(utterance2);
-        }, 1000);
+        }, 800);
       };
 
       window.speechSynthesis.speak(utterance1);
