@@ -180,18 +180,28 @@
 
     /* Action Buttons (Audio & Copy) */
     .action-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       background: #f1f5f9;
       border: 1px solid #e2e8f0;
       border-radius: 14px;
       font-size: 13px;
       cursor: pointer;
-      padding: 3px 8px;
+      padding: 4px 8px;
       margin-left: 4px;
       line-height: 1;
       vertical-align: middle;
       transition: transform 0.15s ease, background-color 0.2s ease, color 0.2s ease;
       -webkit-tap-highlight-color: transparent;
       user-select: none;
+      color: #334155;
+    }
+
+    .action-btn svg {
+      width: 15px;
+      height: 15px;
+      display: block;
     }
 
     .action-btn:hover {
@@ -207,6 +217,7 @@
       background-color: #dcfce7;
       border-color: #86efac;
       color: #166534;
+      font-weight: bold;
     }
 
     /* Custom Confirm Modal Styling */
@@ -335,6 +346,8 @@
     let pendingDeleteIndex = null;
     let pendingDeleteCard = null;
 
+    const copyIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"></path><rect x="9" y="9" width="12" height="12" rx="2" ry="2"></rect></svg>`;
+
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
     function checkEnvironment() {
@@ -386,7 +399,7 @@
                 ${escapeHtml(item.french)}
               </div>
               <button class="action-btn" onclick="handleSpeechClick(event, '${escapeJsQuote(item.french)}', true)" title="Play slowly">🐢</button>
-              <button class="action-btn" onclick="copyToClipboard(event, '${escapeJsQuote(item.french)}', this)" title="Copy to clipboard">📋</button>
+              <button class="action-btn" onclick="copyToClipboard(event, '${escapeJsQuote(item.french)}', this)" title="Copy to clipboard">${copyIconSvg}</button>
             </div>
           `;
         }
@@ -400,7 +413,7 @@
                 ${escapeHtml(item.slang)}
               </div>
               <button class="action-btn" onclick="handleSpeechClick(event, '${escapeJsQuote(item.slang)}', true)" title="Play slowly">🐢</button>
-              <button class="action-btn" onclick="copyToClipboard(event, '${escapeJsQuote(item.slang)}', this)" title="Copy to clipboard">📋</button>
+              <button class="action-btn" onclick="copyToClipboard(event, '${escapeJsQuote(item.slang)}', this)" title="Copy to clipboard">${copyIconSvg}</button>
             </div>
           `;
         }
@@ -444,11 +457,11 @@
         document.body.removeChild(textArea);
       }
 
-      btnElement.innerText = "✓";
+      btnElement.innerHTML = "✓";
       btnElement.classList.add("copied");
 
       setTimeout(() => {
-        btnElement.innerText = "📋";
+        btnElement.innerHTML = copyIconSvg;
         btnElement.classList.remove("copied");
       }, 1500);
     }
