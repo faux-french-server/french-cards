@@ -1148,7 +1148,7 @@
       }
 
       card.addEventListener('touchstart', (e) => {
-        // Ignore interactions on buttons, inputs, or badges
+        // Ignore interactions on buttons, inputs, badges, or clickable text
         if (e.target.closest('.delete-btn') || e.target.closest('.action-btn') || e.target.closest('.category-badge') || e.target.closest('.french') || e.target.closest('.english-prompt')) {
           return;
         }
@@ -1277,11 +1277,9 @@
       const newVisibleIndices = cardNodes.map(c => parseInt(c.getAttribute('data-index')));
 
       if (currentCategoryFilter === 'all') {
-        // Simple full list reorder
         const newPhrases = newVisibleIndices.map(i => localPhrases[i]);
         localPhrases = newPhrases;
       } else {
-        // Reorder within filtered subset while preserving non-visible positions
         const filteredMap = newVisibleIndices.map(i => localPhrases[i]);
         let filterCounter = 0;
 
@@ -1297,9 +1295,9 @@
       saveToLocalStorage(localPhrases);
       renderCards(localPhrases);
 
-      // Sync updated order to Google Sheet
+      // Sync updated order with Google Sheet (reverse matches sheet top-to-bottom order)
       try {
-        const orderedEnglishPhrases = localPhrases.map(p => p.english);
+        const orderedEnglishPhrases = localPhrases.slice().reverse().map(p => p.english);
         await fetch(SCRIPT_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain' },
