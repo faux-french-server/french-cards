@@ -153,10 +153,16 @@
       touch-action: pan-y;
       will-change: transform;
       z-index: 1;
-      transition: background-color 0.2s ease;
+      transition: background-color 0.2s ease, border-color 0.2s ease;
     }
 
-    /* Study Mode Card Styling */
+    /* Revealed state styling in Study Mode */
+    .card.study-revealed {
+      cursor: pointer;
+      border: 1px dashed #007aff;
+    }
+
+    /* Study Mode Card Styling (Hidden State) */
     .card.study-card {
       border: 2px dashed #cbd5e1;
       background: #f8fafc;
@@ -426,6 +432,10 @@
         border-color: #334155;
       }
 
+      .card.study-revealed {
+        border-color: #38bdf8;
+      }
+
       .card.study-card .english-prompt {
         color: #f8fafc;
       }
@@ -595,6 +605,11 @@
       }
     }
 
+    function hideStudyCard(index) {
+      revealedCardIndices.delete(index);
+      renderCards(localPhrases);
+    }
+
     function loadVoices() {
       if ('speechSynthesis' in window) {
         let voices = window.speechSynthesis.getVoices();
@@ -643,7 +658,18 @@
         }
 
         // Standard Card view or Revealed Study Card
-        card.className = 'card';
+        card.className = 'card' + (isStudyMode ? ' study-revealed' : '');
+
+        if (isStudyMode) {
+          card.onclick = (e) => {
+            // Flip back only if the user tapped on the empty card surface/padding
+            if (!e.target.closest('.delete-btn') && 
+                !e.target.closest('.action-btn') && 
+                !e.target.closest('.french')) {
+              hideStudyCard(index);
+            }
+          };
+        }
 
         let contentHtml = `<button class="delete-btn" onclick="handleWebDelete(event, ${index}, this.parentElement)" title="Delete Phrase">&times;</button>`;
 
