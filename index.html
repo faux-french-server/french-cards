@@ -466,7 +466,8 @@
     .category-option-btn {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start;
+      gap: 10px;
       padding: 12px;
       border-radius: 10px;
       border: 1px solid #cbd5e1;
@@ -876,7 +877,7 @@
         const catColor = categoryColors[cat] || defaultCategoryColors[cat] || '#cbd5e1';
         const colorDot = `<span class="color-indicator" style="background:${catColor}"></span>`;
         
-        btn.innerHTML = `<span>${escapeHtml(cat)}</span>${colorDot}`;
+        btn.innerHTML = `${colorDot}<span>${escapeHtml(cat)}</span>`;
 
         attachCategoryButtonGestures(btn, cat, catColor);
 
