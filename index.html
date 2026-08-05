@@ -103,7 +103,6 @@
       margin-bottom: 12px; 
       border-radius: 12px; 
       box-shadow: 0 2px 5px rgba(0,0,0,0.08); 
-      cursor: pointer;
       touch-action: pan-y; /* Allows vertical scrolling while tracking horizontal gestures */
       will-change: transform;
     }
@@ -113,8 +112,22 @@
       transition: transform 0.25s ease-out, opacity 0.25s ease-out;
     }
 
-    .french { font-size: 21px; font-weight: bold; color: #1e3a8a; margin-bottom: 5px; padding-right: 30px; }
-    .english { font-size: 16px; color: #64748b; padding-right: 35px; }
+    .french { 
+      font-size: 21px; 
+      font-weight: bold; 
+      color: #1e3a8a; 
+      margin-bottom: 5px; 
+      padding-right: 30px; 
+      cursor: pointer;
+      display: inline-block;
+      -webkit-tap-highlight-color: rgba(30, 58, 138, 0.1);
+    }
+
+    .french:active {
+      opacity: 0.7;
+    }
+
+    .english { font-size: 16px; color: #64748b; padding-right: 35px; user-select: none; }
 
     /* Delete "X" Button (Visible by default on Web/Desktop) */
     .delete-btn {
@@ -331,7 +344,7 @@
         card.className = 'card';
         card.innerHTML = `
           <button class="delete-btn" onclick="handleWebDelete(event, ${index}, this.parentElement)" title="Delete Phrase">&times;</button>
-          <div class="french">${escapeHtml(item.french)}</div>
+          <div class="french" onclick="handleFrenchClick(event, ${index})">${escapeHtml(item.french)}</div>
           <div class="english">${escapeHtml(item.english)}</div>
           <button class="slow-btn" onclick="handleSlowPlay(event, ${index})" title="Play slowly">🐢</button>
         `;
@@ -341,6 +354,12 @@
 
         container.appendChild(card);
       });
+    }
+
+    function handleFrenchClick(e, index) {
+      e.stopPropagation();
+      unlockAudioOnIOS();
+      speakFrench(localPhrases[index].french, false);
     }
 
     function handleWebDelete(e, index, cardElement) {
@@ -436,24 +455,11 @@
         } else {
           card.style.transform = 'translateX(0px)';
           card.style.opacity = '1';
-
-          // Regular tap on the card plays normal speed
-          if (!isSwiping) {
-            speakFrench(localPhrases[index].french, false);
-          }
         }
 
         currentX = 0;
         isSwiping = false;
       });
-
-      card.onclick = function(e) {
-        if (e.target && (e.target.closest('.delete-btn') || e.target.closest('.slow-btn'))) return;
-
-        if (!isSwiping && !('ontouchstart' in window)) {
-          speakFrench(localPhrases[index].french, false);
-        }
-      };
     }
 
     async function deletePhrase(index) {
