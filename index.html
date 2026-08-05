@@ -500,6 +500,7 @@
       border-radius: 50%;
       border: 1px solid rgba(0,0,0,0.15);
       display: inline-block;
+      flex-shrink: 0;
     }
 
     .category-option-btn.add-new-btn {
@@ -793,6 +794,13 @@
     let revealedCardIndices = new Set();
     let currentCategoryFilter = 'all';
 
+    // Fallback theme colors for standard default categories
+    const defaultCategoryColors = {
+      'morning': '#fef3c7',
+      'evening': '#e0e7ff',
+      'other': '#f1f5f9'
+    };
+
     const copyIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"></path><rect x="9" y="9" width="12" height="12" rx="2" ry="2"></rect></svg>`;
 
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -805,12 +813,16 @@
     }
     checkEnvironment();
 
-    // Map existing category colors from localPhrases
+    // Map existing category colors from localPhrases and standard fallbacks
     function buildCategoryColorMap() {
       localPhrases.forEach(item => {
         const cat = (item.category || '').trim().toLowerCase();
-        if (cat && item.color) {
-          categoryColors[cat] = item.color;
+        if (cat) {
+          if (item.color) {
+            categoryColors[cat] = item.color;
+          } else if (!categoryColors[cat] && defaultCategoryColors[cat]) {
+            categoryColors[cat] = defaultCategoryColors[cat];
+          }
         }
       });
     }
@@ -854,8 +866,9 @@
         btn.type = 'button';
         btn.className = 'category-option-btn';
         
-        const catColor = categoryColors[cat] || '';
-        const colorDot = catColor ? `<span class="color-indicator" style="background:${catColor}"></span>` : '';
+        // Find color from mapped store or default colors
+        const catColor = categoryColors[cat] || defaultCategoryColors[cat] || '#cbd5e1';
+        const colorDot = `<span class="color-indicator" style="background:${catColor}"></span>`;
         
         btn.innerHTML = `<span>${escapeHtml(cat)}</span>${colorDot}`;
         btn.onclick = () => updateCardCategory(cat, catColor);
