@@ -23,33 +23,37 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.03);
     }
 
-    .header-container {
+    /* Top Row: Title + Sync */
+    .header-top-row {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: center;
       gap: 10px;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     h2 { 
       color: #333; 
-      font-size: 22px; 
+      font-size: 24px; 
       margin: 0;
       user-select: none;
       white-space: nowrap;
     }
 
-    .header-actions {
+    /* Sub Row: Filter + Study Mode */
+    .header-sub-row {
       display: flex;
       align-items: center;
-      gap: 8px;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 10px;
     }
 
     .category-filter-select {
       background: #ffffff;
       border: 1px solid #cbd5e1;
       border-radius: 18px;
-      padding: 6px 10px;
+      padding: 6px 12px;
       font-size: 13px;
       font-weight: 600;
       color: #334155;
@@ -62,8 +66,8 @@
       background: #e2e8f0;
       border: none;
       border-radius: 50%;
-      width: 36px;
-      height: 36px;
+      width: 32px;
+      height: 32px;
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -81,8 +85,8 @@
     }
 
     .sync-btn svg {
-      width: 18px;
-      height: 18px;
+      width: 16px;
+      height: 16px;
       display: block;
     }
 
@@ -168,7 +172,7 @@
 
     #list {
       overflow: hidden;
-      padding-top: calc(env(safe-area-inset-top, 20px) + 125px);
+      padding-top: calc(env(safe-area-inset-top, 20px) + 155px);
     }
 
     .card { 
@@ -185,18 +189,35 @@
       transition: background-color 0.2s ease, border-color 0.2s ease;
     }
 
-    /* Category Pill Badge */
+    /* Interactive Category Pill Badge */
     .category-badge {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
       font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      padding: 3px 8px;
+      padding: 4px 10px;
       border-radius: 12px;
       margin-bottom: 8px;
       background: #e2e8f0;
       color: #475569;
+      cursor: pointer;
+      user-select: none;
+      -webkit-tap-highlight-color: rgba(0, 0, 0, 0.05);
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+
+    .category-badge::after {
+      content: '▾';
+      font-size: 10px;
+      margin-left: 2px;
+    }
+
+    .category-badge:active {
+      transform: scale(0.95);
+      opacity: 0.8;
     }
 
     .category-badge.morning {
@@ -429,6 +450,30 @@
       color: white;
     }
 
+    /* Category Picker Modal Options */
+    .category-picker-options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 15px;
+    }
+
+    .category-option-btn {
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      font-size: 15px;
+      font-weight: 600;
+      color: #334155;
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+    }
+
+    .category-option-btn:active {
+      background: #e2e8f0;
+    }
+
     body.is-native-app .delete-btn {
       display: none !important;
     }
@@ -589,6 +634,16 @@
         background: #334155;
         color: #cbd5e1;
       }
+
+      .category-option-btn {
+        background: #334155;
+        border-color: #475569;
+        color: #f8fafc;
+      }
+
+      .category-option-btn:active {
+        background: #475569;
+      }
     }
   </style>
 </head>
@@ -596,35 +651,37 @@
 
   <!-- Fixed Top Header Container -->
   <div class="sticky-header">
-    <div class="header-container">
+    <!-- Top Row: Title + Sync Button -->
+    <div class="header-top-row">
       <h2>🇫🇷 French Phrases</h2>
-      <div class="header-actions">
-        <!-- Category Filter Dropdown -->
-        <select class="category-filter-select" id="categoryFilter" onchange="filterByCategory()">
-          <option value="all">📁 All Categories</option>
-          <option value="morning">🌅 Morning</option>
-          <option value="evening">🌙 Evening</option>
-          <option value="other">💬 Other</option>
-        </select>
-
-        <button class="study-btn" id="studyBtn" onclick="toggleStudyMode()">
-          <span>🎴</span> Study Mode
-        </button>
-        <button class="sync-btn" id="syncBtn" onclick="syncWithCloud()" title="Sync from Google Sheet">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21.5 2v6h-6"></path>
-            <path d="M2.5 22v-6h6"></path>
-            <path d="M2 11.5a10 10 0 0 1 18.8-4.3L21.5 8"></path>
-            <path d="M22 12.5a10 10 0 0 1-18.8 4.2L2.5 16"></path>
-          </svg>
-        </button>
-      </div>
+      <button class="sync-btn" id="syncBtn" onclick="syncWithCloud()" title="Sync from Google Sheet">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21.5 2v6h-6"></path>
+          <path d="M2.5 22v-6h6"></path>
+          <path d="M2 11.5a10 10 0 0 1 18.8-4.3L21.5 8"></path>
+          <path d="M22 12.5a10 10 0 0 1-18.8 4.2L2.5 16"></path>
+        </svg>
+      </button>
     </div>
 
+    <!-- Sub Row: Category Filter + Study Mode Toggle -->
+    <div class="header-sub-row">
+      <select class="category-filter-select" id="categoryFilter" onchange="filterByCategory()">
+        <option value="all">📁 All Categories</option>
+        <option value="morning">🌅 Morning</option>
+        <option value="evening">🌙 Evening</option>
+        <option value="other">💬 Other</option>
+      </select>
+
+      <button class="study-btn" id="studyBtn" onclick="toggleStudyMode()">
+        <span>🎴</span> Study Mode
+      </button>
+    </div>
+
+    <!-- Input Form -->
     <form class="add-phrase-container" onsubmit="event.preventDefault(); handleAddPhrase();">
       <input type="text" id="phraseInput" placeholder="Enter new phrase..." onkeydown="handleKeyPress(event)" />
       
-      <!-- Category Selection on Phrase Creation -->
       <select class="category-add-select" id="newPhraseCategory">
         <option value="other">Other</option>
         <option value="morning">Morning</option>
@@ -637,7 +694,7 @@
 
   <div id="list"></div>
 
-  <!-- Custom Confirm Modal -->
+  <!-- Delete Confirm Modal -->
   <div class="modal-overlay" id="confirmModal">
     <div class="modal-box">
       <div class="modal-title">Delete Phrase</div>
@@ -649,12 +706,29 @@
     </div>
   </div>
 
+  <!-- Category Quick-Picker Modal -->
+  <div class="modal-overlay" id="categoryPickerModal">
+    <div class="modal-box">
+      <div class="modal-title">Change Category</div>
+      <div class="modal-message">Select a new category for this phrase:</div>
+      <div class="category-picker-options">
+        <button class="category-option-btn" onclick="updateCardCategory('morning')">🌅 Morning</button>
+        <button class="category-option-btn" onclick="updateCardCategory('evening')">🌙 Evening</button>
+        <button class="category-option-btn" onclick="updateCardCategory('other')">💬 Other</button>
+      </div>
+      <div style="margin-top: 15px;">
+        <button class="modal-btn modal-btn-cancel" style="width: 100%;" onclick="closeCategoryPickerModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFm4CMsRhjso3PoojdVf1X3ucuBdiznvcfNrcbEmqrnaoRYkOcn5vWbPOGYjaT4BLy/exec';
     let frenchVoice = null;
     let localPhrases = [];
     let pendingDeleteIndex = null;
     let pendingDeleteCard = null;
+    let activeCategoryChangeIndex = null;
 
     let isStudyMode = false;
     let revealedCardIndices = new Set();
@@ -671,6 +745,26 @@
       }
     }
     checkEnvironment();
+
+    function openCategoryPickerModal(e, index) {
+      e.stopPropagation();
+      activeCategoryChangeIndex = index;
+      document.getElementById('categoryPickerModal').classList.add('active');
+    }
+
+    function closeCategoryPickerModal() {
+      activeCategoryChangeIndex = null;
+      document.getElementById('categoryPickerModal').classList.remove('active');
+    }
+
+    function updateCardCategory(newCat) {
+      if (activeCategoryChangeIndex !== null && localPhrases[activeCategoryChangeIndex]) {
+        localPhrases[activeCategoryChangeIndex].category = newCat;
+        saveToLocalStorage(localPhrases);
+        renderCards(localPhrases);
+      }
+      closeCategoryPickerModal();
+    }
 
     function filterByCategory() {
       currentCategoryFilter = document.getElementById('categoryFilter').value;
@@ -738,7 +832,6 @@
         return;
       }
 
-      // Filter phrases based on dropdown selection
       const filteredPhrases = phrases.map((item, originalIndex) => ({ ...item, originalIndex }))
         .filter(item => {
           if (currentCategoryFilter === 'all') return true;
@@ -756,13 +849,15 @@
         let card = document.createElement('div');
         const cat = (item.category || 'other').toLowerCase();
 
-        // Study Mode: Hidden state (Show English prompt only)
+        // Study Mode: Hidden state
         if (isStudyMode && !revealedCardIndices.has(index)) {
           card.className = 'card study-card';
           
           let contentHtml = `<button class="delete-btn" onclick="handleWebDelete(event, ${index}, this.parentElement)" title="Delete Phrase">&times;</button>`;
           contentHtml += `
-            <div class="category-badge ${cat}">${cat}</div>
+            <div>
+              <span class="category-badge ${cat}" onclick="openCategoryPickerModal(event, ${index})">${cat}</span>
+            </div>
             <div class="english-prompt" onclick="revealStudyCard(${index}, localPhrases[${index}])">
               ${escapeHtml(item.english)}
             </div>
@@ -782,14 +877,15 @@
           card.onclick = (e) => {
             if (!e.target.closest('.delete-btn') && 
                 !e.target.closest('.action-btn') && 
-                !e.target.closest('.french')) {
+                !e.target.closest('.french') &&
+                !e.target.closest('.category-badge')) {
               hideStudyCard(index);
             }
           };
         }
 
         let contentHtml = `<button class="delete-btn" onclick="handleWebDelete(event, ${index}, this.parentElement)" title="Delete Phrase">&times;</button>`;
-        contentHtml += `<div class="category-badge ${cat}">${cat}</div>`;
+        contentHtml += `<div><span class="category-badge ${cat}" onclick="openCategoryPickerModal(event, ${index})">${cat}</span></div>`;
 
         if (item.french) {
           contentHtml += `
@@ -911,7 +1007,7 @@
       let isSwiping = false;
 
       card.addEventListener('touchstart', (e) => {
-        if (e.target.closest('.delete-btn') || e.target.closest('.action-btn')) return;
+        if (e.target.closest('.delete-btn') || e.target.closest('.action-btn') || e.target.closest('.category-badge')) return;
 
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
@@ -939,7 +1035,7 @@
       }, { passive: true });
 
       card.addEventListener('touchend', (e) => {
-        if (e.target.closest('.delete-btn') || e.target.closest('.action-btn')) return;
+        if (e.target.closest('.delete-btn') || e.target.closest('.action-btn') || e.target.closest('.category-badge')) return;
 
         card.classList.add('animating');
 
