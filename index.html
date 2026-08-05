@@ -7,7 +7,7 @@
   <style>
     body { font-family: -apple-system, sans-serif; padding: 0 15px 15px 15px; background: #f4f4f9; margin: 0; color: #333; }
     
-    /* Fixed Top Header Container with Safe Area Support */
+    /* Fixed Top Header Container */
     .sticky-header {
       position: fixed;
       top: 0;
@@ -27,15 +27,21 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 12px;
-      margin-bottom: 12px;
+      gap: 10px;
+      margin-bottom: 10px;
     }
 
     h2 { 
       color: #333; 
-      font-size: 26px; 
+      font-size: 24px; 
       margin: 0;
       user-select: none;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .sync-btn {
@@ -63,6 +69,29 @@
       width: 18px;
       height: 18px;
       display: block;
+    }
+
+    /* Study Mode Toggle Button */
+    .study-btn {
+      background: #e2e8f0;
+      border: 1px solid #cbd5e1;
+      border-radius: 18px;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #334155;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .study-btn.active {
+      background: #007aff;
+      color: white;
+      border-color: #007aff;
     }
 
     @keyframes spin {
@@ -124,6 +153,31 @@
       touch-action: pan-y;
       will-change: transform;
       z-index: 1;
+      transition: background-color 0.2s ease;
+    }
+
+    /* Study Mode Card Styling */
+    .card.study-card {
+      cursor: pointer;
+      border: 2px dashed #cbd5e1;
+      background: #f8fafc;
+      text-align: center;
+      padding: 24px 18px;
+    }
+
+    .card.study-card .english-prompt {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .card.study-card .tap-hint {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 700;
     }
 
     .card.animating {
@@ -330,6 +384,18 @@
         background: #334155;
       }
 
+      .study-btn {
+        background: #1e293b;
+        border-color: #334155;
+        color: #cbd5e1;
+      }
+
+      .study-btn.active {
+        background: #007aff;
+        color: white;
+        border-color: #007aff;
+      }
+
       .add-phrase-container input {
         background: #1e293b;
         border-color: #334155;
@@ -343,6 +409,19 @@
       .card {
         background: #1e293b;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      }
+
+      .card.study-card {
+        background: #1e293b;
+        border-color: #334155;
+      }
+
+      .card.study-card .english-prompt {
+        color: #f8fafc;
+      }
+
+      .card.study-card .tap-hint {
+        color: #64748b;
       }
 
       .translation-label {
@@ -416,14 +495,19 @@
   <div class="sticky-header">
     <div class="header-container">
       <h2>🇫🇷 French Phrases</h2>
-      <button class="sync-btn" id="syncBtn" onclick="syncWithCloud()" title="Sync from Google Sheet">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21.5 2v6h-6"></path>
-          <path d="M2.5 22v-6h6"></path>
-          <path d="M2 11.5a10 10 0 0 1 18.8-4.3L21.5 8"></path>
-          <path d="M22 12.5a10 10 0 0 1-18.8 4.2L2.5 16"></path>
-        </svg>
-      </button>
+      <div class="header-actions">
+        <button class="study-btn" id="studyBtn" onclick="toggleStudyMode()">
+          <span>🎴</span> Study Mode
+        </button>
+        <button class="sync-btn" id="syncBtn" onclick="syncWithCloud()" title="Sync from Google Sheet">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.5 2v6h-6"></path>
+            <path d="M2.5 22v-6h6"></path>
+            <path d="M2 11.5a10 10 0 0 1 18.8-4.3L21.5 8"></path>
+            <path d="M22 12.5a10 10 0 0 1-18.8 4.2L2.5 16"></path>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <form class="add-phrase-container" onsubmit="event.preventDefault(); handleAddPhrase();">
@@ -453,6 +537,10 @@
     let pendingDeleteIndex = null;
     let pendingDeleteCard = null;
 
+    // Study Mode state management
+    let isStudyMode = false;
+    let revealedCardIndices = new Set();
+
     const copyIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"></path><rect x="9" y="9" width="12" height="12" rx="2" ry="2"></rect></svg>`;
 
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -464,6 +552,20 @@
       }
     }
     checkEnvironment();
+
+    function toggleStudyMode() {
+      isStudyMode = !isStudyMode;
+      revealedCardIndices.clear();
+
+      const studyBtn = document.getElementById('studyBtn');
+      if (isStudyMode) {
+        studyBtn.classList.add('active');
+      } else {
+        studyBtn.classList.remove('active');
+      }
+
+      renderCards(localPhrases);
+    }
 
     function loadVoices() {
       if ('speechSynthesis' in window) {
@@ -493,6 +595,25 @@
 
       phrases.forEach((item, index) => {
         let card = document.createElement('div');
+
+        // Study Mode: Hidden state (Show English prompt only)
+        if (isStudyMode && !revealedCardIndices.has(index)) {
+          card.className = 'card study-card';
+          card.innerHTML = `
+            <div class="english-prompt">${escapeHtml(item.english)}</div>
+            <div class="tap-hint">Tap to reveal translation 👆</div>
+          `;
+          card.onclick = () => {
+            revealedCardIndices.add(index);
+            renderCards(localPhrases);
+          };
+
+          attachSwipeHandler(card, index);
+          container.appendChild(card);
+          return;
+        }
+
+        // Standard Card view or Revealed Study Card
         card.className = 'card';
 
         let contentHtml = `<button class="delete-btn" onclick="handleWebDelete(event, ${index}, this.parentElement)" title="Delete Phrase">&times;</button>`;
@@ -665,6 +786,7 @@
       const itemToDelete = localPhrases[index];
 
       localPhrases.splice(index, 1);
+      revealedCardIndices.delete(index);
       saveToLocalStorage(localPhrases);
       renderCards(localPhrases);
 
@@ -775,6 +897,12 @@
 
           localPhrases.unshift(newCard);
           saveToLocalStorage(localPhrases);
+
+          // In study mode, automatically reveal newly added card at index 0
+          if (isStudyMode) {
+            revealedCardIndices.add(0);
+          }
+
           renderCards(localPhrases);
 
           input.value = '';
@@ -800,11 +928,9 @@
     }
 
     function speakFrenchSequence(firstText, secondText) {
-      // Native iOS WebKit Handler Timing Fix
       if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeSpeak) {
         window.webkit.messageHandlers.nativeSpeak.postMessage("NORMAL|" + firstText);
         
-        // Tighter dynamic timing calculation tailored to standard iOS TTS speaking rates
         const speechRateMultiplier = isIOS ? 60 : 50; 
         const estimatedDurationMs = (firstText.length * speechRateMultiplier) + 400;
         
@@ -831,7 +957,7 @@
           utterance2.rate = isIOS ? 0.52 : 0.88;
           if (frenchVoice) utterance2.voice = frenchVoice;
           window.speechSynthesis.speak(utterance2);
-        }, 500); // Clean 0.5s pause
+        }, 500);
       };
 
       window.speechSynthesis.speak(utterance1);
