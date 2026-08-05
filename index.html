@@ -738,11 +738,27 @@
       document.getElementById('categoryPickerModal').classList.remove('active');
     }
 
-    function updateCardCategory(newCat) {
+    async function updateCardCategory(newCat) {
       if (activeCategoryChangeIndex !== null && localPhrases[activeCategoryChangeIndex]) {
-        localPhrases[activeCategoryChangeIndex].category = newCat;
+        const item = localPhrases[activeCategoryChangeIndex];
+        item.category = newCat;
         saveToLocalStorage(localPhrases);
         renderCards(localPhrases);
+
+        // Sync category update to Google Sheet
+        try {
+          await fetch(SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({
+              action: 'updateCategory',
+              english: item.english,
+              category: newCat
+            })
+          });
+        } catch (e) {
+          console.error('Failed to sync updated category to Google Sheet', e);
+        }
       }
       closeCategoryPickerModal();
     }
@@ -1147,7 +1163,7 @@
             english: result.english, 
             french: result.french,
             slang: result.slang,
-            category: category
+            category: result.category || category
           };
 
           localPhrases.unshift(newCard);
