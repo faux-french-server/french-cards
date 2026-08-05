@@ -729,7 +729,7 @@
     </div>
   </div>
 
-  <!-- Category Quick-Picker Modal (Dismissible by tapping outside) -->
+  <!-- Category Quick-Picker Modal -->
   <div class="modal-overlay" id="categoryPickerModal" onclick="handleCategoryOverlayClick(event)">
     <div class="modal-box">
       <div class="modal-title">Change Category</div>
@@ -777,7 +777,6 @@
     }
     checkEnvironment();
 
-    // Dynamic extraction: strictly categories assigned to 1 or more phrases
     function getActiveCategories() {
       const activeCats = new Set();
       
@@ -794,7 +793,6 @@
 
       const activeCategories = getActiveCategories();
 
-      // 1. Update Header Filter Dropdown
       const select = document.getElementById('categoryFilter');
       const previousSelected = currentCategoryFilter;
       select.innerHTML = '<option value="all">All Categories</option>';
@@ -813,7 +811,6 @@
         select.value = 'all';
       }
 
-      // 2. Update Modal Quick-Picker Options
       const optionsContainer = document.getElementById('categoryPickerOptions');
       optionsContainer.innerHTML = '';
 
@@ -826,7 +823,6 @@
         optionsContainer.appendChild(btn);
       });
 
-      // Add "Add New Category" Option
       const addNewBtn = document.createElement('button');
       addNewBtn.type = 'button';
       addNewBtn.className = 'category-option-btn add-new-btn';
@@ -980,7 +976,6 @@
         const cat = (item.category || 'uncategorized').toLowerCase();
         card.setAttribute('data-index', index);
 
-        // Study Mode: Hidden state
         if (isStudyMode && !revealedCardIndices.has(index)) {
           card.className = 'card study-card';
           
@@ -1001,7 +996,6 @@
           return;
         }
 
-        // Standard Card view or Revealed Study Card
         card.className = 'card' + (isStudyMode ? ' study-revealed' : '');
 
         if (isStudyMode) {
@@ -1131,7 +1125,6 @@
       pendingDeleteCard = null;
     }
 
-    /* Combined Gesture Handler: Swipe Delete & Long-Press Drag Reordering */
     function attachCardGestures(card, index) {
       let startX = 0;
       let startY = 0;
@@ -1148,7 +1141,6 @@
       }
 
       card.addEventListener('touchstart', (e) => {
-        // Ignore interactions on buttons, inputs, badges, or clickable text
         if (e.target.closest('.delete-btn') || e.target.closest('.action-btn') || e.target.closest('.category-badge') || e.target.closest('.french') || e.target.closest('.english-prompt')) {
           return;
         }
@@ -1160,7 +1152,6 @@
         isDragging = false;
         card.classList.remove('animating');
 
-        // Initiate Long-Press detection (~400ms) for dragging
         longPressTimer = setTimeout(() => {
           isDragging = true;
           triggerHaptic();
@@ -1187,19 +1178,16 @@
         let deltaX = touch.clientX - startX;
         let deltaY = touch.clientY - startY;
 
-        // Cancel long press if moved significantly before timer fires
         if (!isDragging && Math.hypot(deltaX, deltaY) > 10) {
           clearTimeout(longPressTimer);
         }
 
-        // Handle active Drag Mode
         if (isDragging) {
           e.preventDefault();
           if (ghostCard) {
             ghostCard.style.top = (touch.clientY - dragOffsetY) + 'px';
           }
 
-          // Determine position relative to other cards in current view
           const container = document.getElementById('list');
           const cards = Array.from(container.querySelectorAll('.card:not(.dragging-active)'));
           const currentTouchY = touch.clientY;
@@ -1225,7 +1213,6 @@
           return;
         }
 
-        // Handle Horizontal Swipe-to-delete
         if (!isSwiping && Math.abs(deltaY) > Math.abs(deltaX)) {
           return;
         }
@@ -1249,7 +1236,6 @@
           card.classList.remove('dragging-active');
           isDragging = false;
 
-          // Commit reorder locally & sync with Google Sheets
           commitNewOrder();
           return;
         }
@@ -1295,9 +1281,10 @@
       saveToLocalStorage(localPhrases);
       renderCards(localPhrases);
 
-      // Sync updated order with Google Sheet (reverse matches sheet top-to-bottom order)
+      // Send phrases in top-to-bottom UI order.
+      // Code.gs writes them backwards so App Top = Sheet Bottom.
       try {
-        const orderedEnglishPhrases = localPhrases.slice().reverse().map(p => p.english);
+        const orderedEnglishPhrases = localPhrases.map(p => p.english);
         await fetch(SCRIPT_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain' },
@@ -1374,6 +1361,7 @@
           phrasesData = remoteData.phrases;
         }
 
+        // Reverses array on fetch so Google Sheet Bottom = App Top
         localPhrases = phrasesData.reverse();
         saveToLocalStorage(localPhrases);
         renderCards(localPhrases);
