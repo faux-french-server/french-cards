@@ -131,7 +131,7 @@
       margin: 0 auto;
     }
 
-    .add-phrase-container input {
+    .add-phrase-container input, .modal-input {
       flex: 1;
       min-width: 0;
       padding: 10px 14px;
@@ -141,6 +141,12 @@
       outline: none;
       background: #ffffff;
       color: #1e293b;
+      box-sizing: border-box;
+    }
+
+    .modal-input {
+      width: 100%;
+      margin-bottom: 15px;
     }
 
     .add-phrase-container button {
@@ -410,7 +416,7 @@
     .modal-message {
       font-size: 14px;
       color: #64748b;
-      margin-bottom: 20px;
+      margin-bottom: 15px;
     }
 
     .modal-buttons {
@@ -432,6 +438,11 @@
     .modal-btn-cancel {
       background: #f1f5f9;
       color: #475569;
+    }
+
+    .modal-btn-confirm {
+      background: #007aff;
+      color: white;
     }
 
     .modal-btn-delete {
@@ -519,13 +530,13 @@
         border-color: #007aff;
       }
 
-      .add-phrase-container input {
+      .add-phrase-container input, .modal-input {
         background: #1e293b;
         border-color: #334155;
         color: #f8fafc;
       }
 
-      .add-phrase-container input::placeholder {
+      .add-phrase-container input::placeholder, .modal-input::placeholder {
         color: #64748b;
       }
 
@@ -714,6 +725,19 @@
     </div>
   </div>
 
+  <!-- New Category Input Modal -->
+  <div class="modal-overlay" id="newCategoryModal">
+    <div class="modal-box">
+      <div class="modal-title">New Category</div>
+      <div class="modal-message">Type a name for the new category:</div>
+      <input type="text" class="modal-input" id="newCategoryInput" placeholder="Category name..." />
+      <div class="modal-buttons">
+        <button class="modal-btn modal-btn-cancel" onclick="closeNewCategoryModal(false)">Cancel</button>
+        <button class="modal-btn modal-btn-confirm" onclick="closeNewCategoryModal(true)">Create</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFm4CMsRhjso3PoojdVf1X3ucuBdiznvcfNrcbEmqrnaoRYkOcn5vWbPOGYjaT4BLy/exec';
     let frenchVoice = null;
@@ -768,6 +792,7 @@
 
       categoriesList.forEach(cat => {
         const btn = document.createElement('button');
+        btn.type = 'button';
         btn.className = 'category-option-btn';
         btn.innerHTML = `${getCategoryEmoji(cat)} ${escapeHtml(cat)}`;
         btn.onclick = () => updateCardCategory(cat);
@@ -776,9 +801,10 @@
 
       // Add "➕ Add New Category" Option
       const addNewBtn = document.createElement('button');
+      addNewBtn.type = 'button';
       addNewBtn.className = 'category-option-btn add-new-btn';
       addNewBtn.innerHTML = '➕ Add New Category...';
-      addNewBtn.onclick = handleAddNewCategory;
+      addNewBtn.onclick = openNewCategoryModal;
       optionsContainer.appendChild(addNewBtn);
     }
 
@@ -792,10 +818,19 @@
       return cleanCat;
     }
 
-    function handleAddNewCategory() {
-      const newCatPrompt = prompt('Enter new category name:');
-      if (newCatPrompt) {
-        const cleanCat = registerCategory(newCatPrompt);
+    function openNewCategoryModal() {
+      document.getElementById('newCategoryInput').value = '';
+      document.getElementById('newCategoryModal').classList.add('active');
+      setTimeout(() => document.getElementById('newCategoryInput').focus(), 100);
+    }
+
+    function closeNewCategoryModal(confirmed) {
+      const input = document.getElementById('newCategoryInput');
+      const val = input.value.trim();
+      document.getElementById('newCategoryModal').classList.remove('active');
+
+      if (confirmed && val) {
+        const cleanCat = registerCategory(val);
         if (cleanCat) {
           updateCardCategory(cleanCat);
         }
