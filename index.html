@@ -168,6 +168,7 @@
     #list {
       overflow: hidden;
       padding-top: calc(env(safe-area-inset-top, 20px) + 155px);
+      position: relative;
     }
 
     .card { 
@@ -181,7 +182,24 @@
       touch-action: pan-y;
       will-change: transform;
       z-index: 1;
-      transition: background-color 0.2s ease, border-color 0.2s ease;
+      transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .card.dragging-active {
+      opacity: 0.3 !important;
+      border: 2px dashed #007aff;
+    }
+
+    .card-ghost {
+      position: fixed;
+      pointer-events: none;
+      z-index: 3000;
+      opacity: 0.9;
+      box-shadow: 0 12px 28px rgba(0,0,0,0.25) !important;
+      transform: scale(1.02);
+      transition: none !important;
     }
 
     /* Interactive Category Pill Badge */
@@ -795,7 +813,7 @@
         select.value = 'all';
       }
 
-      // 2. Update Modal Quick-Picker Options (Strictly non-empty active categories)
+      // 2. Update Modal Quick-Picker Options
       const optionsContainer = document.getElementById('categoryPickerOptions');
       optionsContainer.innerHTML = '';
 
@@ -846,7 +864,6 @@
     }
 
     function handleCategoryOverlayClick(e) {
-      // If the user taps outside the modal box (on the overlay backdrop), close the popup
       if (e.target.id === 'categoryPickerModal') {
         closeCategoryPickerModal();
       }
@@ -961,6 +978,7 @@
         const index = item.originalIndex;
         let card = document.createElement('div');
         const cat = (item.category || 'uncategorized').toLowerCase();
+        card.setAttribute('data-index', index);
 
         // Study Mode: Hidden state
         if (isStudyMode && !revealedCardIndices.has(index)) {
@@ -978,7 +996,7 @@
           `;
           
           card.innerHTML = contentHtml;
-          attachSwipeHandler(card, index);
+          attachCardGestures(card, index);
           container.appendChild(card);
           return;
         }
@@ -1030,7 +1048,7 @@
 
         card.innerHTML = contentHtml;
 
-        attachSwipeHandler(card, index);
+        attachCardGestures(card, index);
 
         container.appendChild(card);
       });
@@ -1113,28 +1131,101 @@
       pendingDeleteCard = null;
     }
 
-    function attachSwipeHandler(card, index) {
+    /* Combined Gesture Handler: Swipe Delete & Long-Press Drag Reordering */
+    function attachCardGestures(card, index) {
       let startX = 0;
       let startY = 0;
       let currentX = 0;
       let isSwiping = false;
 
-      card.addEventListener('touchstart', (e) => {
-        if (e.target.closest('.delete-btn') || e.target.closest('.action-btn') || e.target.closest('.category-badge')) return;
+      let longPressTimer = null;
+      let isDragging = false;
+      let ghostCard = null;
+      let dragOffsetY = 0;
 
-        startX = e.touches[0].clientX;
-        startY = e.touches[0].clientY;
+      function triggerHaptic() {
+        if (navigator.vibrate) navigator.vibrate(40);
+      }
+
+      card.addEventListener('touchstart', (e) => {
+        // Ignore interactions on buttons, inputs, or badges
+        if (e.target.closest('.delete-btn') || e.target.closest('.action-btn') || e.target.closest('.category-badge') || e.target.closest('.french') || e.target.closest('.english-prompt')) {
+          return;
+        }
+
+        const touch = e.touches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
         isSwiping = false;
+        isDragging = false;
         card.classList.remove('animating');
+
+        // Initiate Long-Press detection (~400ms) for dragging
+        longPressTimer = setTimeout(() => {
+          isDragging = true;
+          triggerHaptic();
+
+          card.classList.add('dragging-active');
+
+          const rect = card.getBoundingClientRect();
+          dragOffsetY = touch.clientY - rect.top;
+
+          ghostCard = card.cloneNode(true);
+          ghostCard.classList.remove('dragging-active');
+          ghostCard.classList.add('card-ghost');
+          ghostCard.style.width = rect.width + 'px';
+          ghostCard.style.left = rect.left + 'px';
+          ghostCard.style.top = (touch.clientY - dragOffsetY) + 'px';
+
+          document.body.appendChild(ghostCard);
+        }, 400);
+
       }, { passive: true });
 
       card.addEventListener('touchmove', (e) => {
-        let touchX = e.touches[0].clientX;
-        let touchY = e.touches[0].clientY;
-        
-        let deltaX = touchX - startX;
-        let deltaY = touchY - startY;
+        const touch = e.touches[0];
+        let deltaX = touch.clientX - startX;
+        let deltaY = touch.clientY - startY;
 
+        // Cancel long press if moved significantly before timer fires
+        if (!isDragging && Math.hypot(deltaX, deltaY) > 10) {
+          clearTimeout(longPressTimer);
+        }
+
+        // Handle active Drag Mode
+        if (isDragging) {
+          e.preventDefault();
+          if (ghostCard) {
+            ghostCard.style.top = (touch.clientY - dragOffsetY) + 'px';
+          }
+
+          // Determine position relative to other cards in current view
+          const container = document.getElementById('list');
+          const cards = Array.from(container.querySelectorAll('.card:not(.dragging-active)'));
+          const currentTouchY = touch.clientY;
+
+          let targetCard = null;
+          for (let otherCard of cards) {
+            const box = otherCard.getBoundingClientRect();
+            if (currentTouchY >= box.top && currentTouchY <= box.bottom) {
+              targetCard = otherCard;
+              break;
+            }
+          }
+
+          if (targetCard) {
+            const box = targetCard.getBoundingClientRect();
+            const middleY = box.top + box.height / 2;
+            if (currentTouchY < middleY) {
+              container.insertBefore(card, targetCard);
+            } else {
+              container.insertBefore(card, targetCard.nextSibling);
+            }
+          }
+          return;
+        }
+
+        // Handle Horizontal Swipe-to-delete
         if (!isSwiping && Math.abs(deltaY) > Math.abs(deltaX)) {
           return;
         }
@@ -1145,9 +1236,24 @@
           card.style.transform = `translateX(${deltaX}px)`;
           card.style.opacity = Math.max(0.2, 1 - (deltaX / 300));
         }
-      }, { passive: true });
+      }, { passive: false });
 
       card.addEventListener('touchend', (e) => {
+        clearTimeout(longPressTimer);
+
+        if (isDragging) {
+          if (ghostCard) {
+            ghostCard.remove();
+            ghostCard = null;
+          }
+          card.classList.remove('dragging-active');
+          isDragging = false;
+
+          // Commit reorder locally & sync with Google Sheets
+          commitNewOrder();
+          return;
+        }
+
         if (e.target.closest('.delete-btn') || e.target.closest('.action-btn') || e.target.closest('.category-badge')) return;
 
         card.classList.add('animating');
@@ -1162,6 +1268,49 @@
         currentX = 0;
         isSwiping = false;
       });
+    }
+
+    async function commitNewOrder() {
+      const container = document.getElementById('list');
+      const cardNodes = Array.from(container.querySelectorAll('.card'));
+      
+      const newVisibleIndices = cardNodes.map(c => parseInt(c.getAttribute('data-index')));
+
+      if (currentCategoryFilter === 'all') {
+        // Simple full list reorder
+        const newPhrases = newVisibleIndices.map(i => localPhrases[i]);
+        localPhrases = newPhrases;
+      } else {
+        // Reorder within filtered subset while preserving non-visible positions
+        const filteredMap = newVisibleIndices.map(i => localPhrases[i]);
+        let filterCounter = 0;
+
+        localPhrases = localPhrases.map(item => {
+          const itemCat = (item.category || '').toLowerCase();
+          if (itemCat === currentCategoryFilter) {
+            return filteredMap[filterCounter++];
+          }
+          return item;
+        });
+      }
+
+      saveToLocalStorage(localPhrases);
+      renderCards(localPhrases);
+
+      // Sync updated order to Google Sheet
+      try {
+        const orderedEnglishPhrases = localPhrases.map(p => p.english);
+        await fetch(SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({
+            action: 'reorder',
+            orderedPhrases: orderedEnglishPhrases
+          })
+        });
+      } catch (e) {
+        console.error('Failed to sync new order with Google Sheet', e);
+      }
     }
 
     async function deletePhrase(index) {
