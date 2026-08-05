@@ -472,7 +472,6 @@
     function copyToClipboard(e, text, btnElement) {
       e.stopPropagation();
       
-      // Fallback for older browsers / native WebViews without clipboard API access
       if (navigator.clipboard && window.isSecureContext) {
         navigator.clipboard.writeText(text);
       } else {
@@ -491,7 +490,6 @@
         document.body.removeChild(textArea);
       }
 
-      // Visual Feedback on Button
       btnElement.innerText = "✓";
       btnElement.classList.add("copied");
 
@@ -714,8 +712,18 @@
 
           input.value = '';
 
-          // Play modern slang audio if present, otherwise standard french
-          speakFrench(result.slang || result.french, false);
+          // Sequence playback: Standard -> 1s delay -> Slang
+          if (result.french && result.slang) {
+            speakFrench(result.french, false);
+            setTimeout(() => {
+              speakFrench(result.slang, false);
+            }, 1000);
+          } else if (result.french) {
+            speakFrench(result.french, false);
+          } else if (result.slang) {
+            speakFrench(result.slang, false);
+          }
+
         } else {
           alert('Translation error: ' + (result.message || 'Unknown error'));
         }
