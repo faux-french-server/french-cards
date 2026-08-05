@@ -208,29 +208,35 @@
       background-color: #fee2e2;
     }
 
-    /* Inline Audio Button for Slang & Standard */
-    .audio-btn {
+    /* Action Buttons (Audio & Copy) */
+    .action-btn {
       background: #f1f5f9;
       border: 1px solid #e2e8f0;
       border-radius: 14px;
       font-size: 13px;
       cursor: pointer;
       padding: 3px 8px;
-      margin-left: 6px;
+      margin-left: 4px;
       line-height: 1;
       vertical-align: middle;
-      transition: transform 0.15s ease, background-color 0.2s ease;
+      transition: transform 0.15s ease, background-color 0.2s ease, color 0.2s ease;
       -webkit-tap-highlight-color: transparent;
       user-select: none;
     }
 
-    .audio-btn:hover {
+    .action-btn:hover {
       background-color: #e2e8f0;
     }
 
-    .audio-btn:active {
+    .action-btn:active {
       transform: scale(0.9);
       background-color: #cbd5e1;
+    }
+
+    .action-btn.copied {
+      background-color: #dcfce7;
+      border-color: #86efac;
+      color: #166534;
     }
 
     /* Custom Confirm Modal Styling */
@@ -425,7 +431,8 @@
               <div class="french" onclick="handleSpeechClick(event, '${escapeJsQuote(item.french)}', false)">
                 ${escapeHtml(item.french)}
               </div>
-              <button class="audio-btn" onclick="handleSpeechClick(event, '${escapeJsQuote(item.french)}', true)">🐢</button>
+              <button class="action-btn" onclick="handleSpeechClick(event, '${escapeJsQuote(item.french)}', true)" title="Play slowly">🐢</button>
+              <button class="action-btn" onclick="copyToClipboard(event, '${escapeJsQuote(item.french)}', this)" title="Copy to clipboard">📋</button>
             </div>
           `;
         }
@@ -438,7 +445,8 @@
               <div class="french slang-text" onclick="handleSpeechClick(event, '${escapeJsQuote(item.slang)}', false)">
                 ${escapeHtml(item.slang)}
               </div>
-              <button class="audio-btn" onclick="handleSpeechClick(event, '${escapeJsQuote(item.slang)}', true)">🐢</button>
+              <button class="action-btn" onclick="handleSpeechClick(event, '${escapeJsQuote(item.slang)}', true)" title="Play slowly">🐢</button>
+              <button class="action-btn" onclick="copyToClipboard(event, '${escapeJsQuote(item.slang)}', this)" title="Copy to clipboard">📋</button>
             </div>
           `;
         }
@@ -459,6 +467,38 @@
       e.stopPropagation();
       unlockAudioOnIOS();
       speakFrench(text, isSlow);
+    }
+
+    function copyToClipboard(e, text, btnElement) {
+      e.stopPropagation();
+      
+      // Fallback for older browsers / native WebViews without clipboard API access
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text);
+      } else {
+        let textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+          document.execCommand('copy');
+        } catch (err) {
+          console.error('Fallback copy failed', err);
+        }
+        document.body.removeChild(textArea);
+      }
+
+      // Visual Feedback on Button
+      btnElement.innerText = "✓";
+      btnElement.classList.add("copied");
+
+      setTimeout(() => {
+        btnElement.innerText = "📋";
+        btnElement.classList.remove("copied");
+      }, 1500);
     }
 
     function handleWebDelete(e, index, cardElement) {
@@ -509,7 +549,7 @@
       let isSwiping = false;
 
       card.addEventListener('touchstart', (e) => {
-        if (e.target.closest('.delete-btn') || e.target.closest('.audio-btn')) return;
+        if (e.target.closest('.delete-btn') || e.target.closest('.action-btn')) return;
 
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
@@ -537,7 +577,7 @@
       }, { passive: true });
 
       card.addEventListener('touchend', (e) => {
-        if (e.target.closest('.delete-btn') || e.target.closest('.audio-btn')) return;
+        if (e.target.closest('.delete-btn') || e.target.closest('.action-btn')) return;
 
         card.classList.add('animating');
 
