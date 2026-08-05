@@ -1,782 +1,125 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>French Phrases</title>
-
-  <style>
-    body { font-family: -apple-system, sans-serif; padding: 0 15px 15px 15px; background: #f4f4f9; margin: 0; }
-    
-    /* Sticky Top Header Container */
-    .sticky-header {
-      position: sticky;
-      top: 0;
-      background: #f4f4f9;
-      padding-top: 10px;
-      padding-bottom: 12px;
-      z-index: 100;
-      border-bottom: 1px solid #cbd5e1;
-      margin-bottom: 15px;
-    }
-
-    .header-container {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
-
-    h2 { 
-      color: #333; 
-      font-size: 26px; 
-      margin: 0;
-      user-select: none;
-    }
-
-    .sync-btn {
-      background: #e2e8f0;
-      border: none;
-      border-radius: 50%;
-      width: 36px;
-      height: 36px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: transform 0.2s ease, background-color 0.2s ease;
-      color: #475569;
-      padding: 0;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .sync-btn:active {
-      transform: scale(0.9);
-      background: #cbd5e1;
-    }
-
-    .sync-btn svg {
-      width: 18px;
-      height: 18px;
-      display: block;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    .spinning {
-      animation: spin 0.8s linear infinite;
-    }
-
-    /* Mode Selector Segmented Control */
-    .mode-selector {
-      display: flex;
-      background: #e2e8f0;
-      border-radius: 10px;
-      padding: 3px;
-      max-width: 400px;
-      margin: 0 auto 10px auto;
-    }
-
-    .mode-btn {
-      flex: 1;
-      border: none;
-      background: none;
-      padding: 6px 0;
-      font-size: 13px;
-      font-weight: 600;
-      color: #64748b;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .mode-btn.active {
-      background: white;
-      color: #1e293b;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-
-    .add-phrase-container {
-      display: flex;
-      gap: 8px;
-      justify-content: center;
-      max-width: 400px;
-      margin: 0 auto;
-    }
-
-    .add-phrase-container input {
-      flex: 1;
-      padding: 10px 14px;
-      border: 1px solid #ccc;
-      border-radius: 10px;
-      font-size: 15px;
-      outline: none;
-    }
-
-    .add-phrase-container button {
-      padding: 10px 16px;
-      background-color: #007aff;
-      color: white;
-      border: none;
-      border-radius: 10px;
-      font-weight: 600;
-      font-size: 14px;
-      cursor: pointer;
-    }
-
-    .add-phrase-container button:active {
-      opacity: 0.8;
-    }    
-
-    #list {
-      overflow: hidden; /* Prevents horizontal scrollbars during swipe animation */
-    }
-
-    .card { 
-      position: relative;
-      background: white; 
-      padding: 18px;
-      padding-bottom: 20px;
-      margin-bottom: 12px; 
-      border-radius: 12px; 
-      box-shadow: 0 2px 5px rgba(0,0,0,0.08); 
-      touch-action: pan-y; /* Allows vertical scrolling while tracking horizontal gestures */
-      will-change: transform;
-    }
-
-    /* Smooth transition when sliding out or snapping back */
-    .card.animating {
-      transition: transform 0.25s ease-out, opacity 0.25s ease-out;
-    }
-
-    .translation-row {
-      margin-bottom: 10px;
-    }
-
-    .translation-label {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      color: #94a3b8;
-      margin-bottom: 2px;
-    }
-
-    .french { 
-      font-size: 19px; 
-      font-weight: bold; 
-      color: #1e3a8a; 
-      cursor: pointer;
-      display: inline-block;
-      -webkit-tap-highlight-color: rgba(30, 58, 138, 0.1);
-    }
-
-    .french.slang-text {
-      color: #0284c7;
-    }
-
-    .french:active {
-      opacity: 0.7;
-    }
-
-    .english { font-size: 15px; color: #64748b; margin-top: 4px; user-select: none; }
-
-    /* Delete "X" Button (Visible by default on Web/Desktop) */
-    .delete-btn {
-      display: block;
-      position: absolute;
-      top: 10px;
-      right: 12px;
-      background: none;
-      border: none;
-      font-size: 22px;
-      color: #94a3b8;
-      cursor: pointer;
-      padding: 4px 8px;
-      line-height: 1;
-      border-radius: 50%;
-      transition: color 0.2s ease, background-color 0.2s ease;
-      z-index: 10;
-    }
-
-    .delete-btn:hover {
-      color: #ef4444;
-      background-color: #fee2e2;
-    }
-
-    /* Action Buttons (Audio & Copy) */
-    .action-btn {
-      background: #f1f5f9;
-      border: 1px solid #e2e8f0;
-      border-radius: 14px;
-      font-size: 13px;
-      cursor: pointer;
-      padding: 3px 8px;
-      margin-left: 4px;
-      line-height: 1;
-      vertical-align: middle;
-      transition: transform 0.15s ease, background-color 0.2s ease, color 0.2s ease;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-    }
-
-    .action-btn:hover {
-      background-color: #e2e8f0;
-    }
-
-    .action-btn:active {
-      transform: scale(0.9);
-      background-color: #cbd5e1;
-    }
-
-    .action-btn.copied {
-      background-color: #dcfce7;
-      border-color: #86efac;
-      color: #166534;
-    }
-
-    /* Custom Confirm Modal Styling */
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0, 0, 0, 0.4);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.2s ease;
-    }
-
-    .modal-overlay.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .modal-box {
-      background: white;
-      border-radius: 14px;
-      padding: 20px;
-      width: 80%;
-      max-width: 300px;
-      text-align: center;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-      transform: scale(0.9);
-      transition: transform 0.2s ease;
-    }
-
-    .modal-overlay.active .modal-box {
-      transform: scale(1);
-    }
-
-    .modal-title {
-      font-size: 17px;
-      font-weight: 600;
-      color: #1e293b;
-      margin-bottom: 8px;
-    }
-
-    .modal-message {
-      font-size: 14px;
-      color: #64748b;
-      margin-bottom: 20px;
-    }
-
-    .modal-buttons {
-      display: flex;
-      gap: 10px;
-    }
-
-    .modal-btn {
-      flex: 1;
-      padding: 10px 0;
-      border-radius: 8px;
-      border: none;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .modal-btn-cancel {
-      background: #f1f5f9;
-      color: #475569;
-    }
-
-    .modal-btn-delete {
-      background: #ef4444;
-      color: white;
-    }
-
-    /* Hide Delete "X" Button ONLY inside the Native iOS App */
-    body.is-native-app .delete-btn {
-      display: none !important;
-    }
-  </style>
-</head>
-<body>
-
-  <!-- Frozen Sticky Top Header -->
-  <div class="sticky-header">
-    <div class="header-container">
-      <h2>🇫🇷 French Phrases</h2>
-      <button class="sync-btn" id="syncBtn" onclick="syncWithCloud()" title="Sync from Google Sheet">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21.5 2v6h-6"></path>
-          <path d="M2.5 22v-6h6"></path>
-          <path d="M2 11.5a10 10 0 0 1 18.8-4.3L21.5 8"></path>
-          <path d="M22 12.5a10 10 0 0 1-18.8 4.2L2.5 16"></path>
-        </svg>
-      </button>
-    </div>
-
-    <!-- Translation Mode Selector -->
-    <div class="mode-selector">
-      <button class="mode-btn" id="modeDeepl" onclick="setMode('deepl')">Standard</button>
-      <button class="mode-btn" id="modeSlang" onclick="setMode('slang')">Slang</button>
-      <button class="mode-btn active" id="modeBoth" onclick="setMode('both')">Both</button>
-    </div>
-
-    <form class="add-phrase-container" onsubmit="event.preventDefault(); handleAddPhrase();">
-      <input type="text" id="phraseInput" placeholder="Enter new phrase..." onkeydown="handleKeyPress(event)" />
-      <button type="submit" id="addBtn">Translate</button>
-    </form>
-  </div>
-
-  <div id="list"></div>
-
-  <!-- Custom Confirm Modal -->
-  <div class="modal-overlay" id="confirmModal">
-    <div class="modal-box">
-      <div class="modal-title">Delete Phrase</div>
-      <div class="modal-message">Are you sure you want to delete this phrase?</div>
-      <div class="modal-buttons">
-        <button class="modal-btn modal-btn-cancel" onclick="closeConfirmModal(false)">Cancel</button>
-        <button class="modal-btn modal-btn-delete" onclick="closeConfirmModal(true)">Delete</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFm4CMsRhjso3PoojdVf1X3ucuBdiznvcfNrcbEmqrnaoRYkOcn5vWbPOGYjaT4BLy/exec';
-    let frenchVoice = null;
-    let localPhrases = [];
-    let pendingDeleteIndex = null;
-    let pendingDeleteCard = null;
-    let currentMode = 'both';
-
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-    function checkEnvironment() {
-      const isNativeApp = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeSpeak);
-      if (isNativeApp) {
-        document.body.classList.add('is-native-app');
-      }
-    }
-    checkEnvironment();
-
-    function setMode(mode) {
-      currentMode = mode;
-      document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
-      if (mode === 'deepl') document.getElementById('modeDeepl').classList.add('active');
-      if (mode === 'slang') document.getElementById('modeSlang').classList.add('active');
-      if (mode === 'both') document.getElementById('modeBoth').classList.add('active');
-    }
-
-    function loadVoices() {
-      if ('speechSynthesis' in window) {
-        let voices = window.speechSynthesis.getVoices();
-        let frVoices = voices.filter(v => v.lang.startsWith('fr'));
-        
-        frenchVoice = frVoices.find(v => v.name.includes('Thomas')) || 
-                      frVoices.find(v => v.name.includes('Nicolas')) || 
-                      frVoices.find(v => v.lang === 'fr-FR') ||
-                      frVoices[0];
-      }
-    }
-
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.onvoiceschanged = loadVoices;
-      loadVoices();
-    }
-
-    function renderCards(phrases) {
-      const container = document.getElementById('list');
-      container.innerHTML = '';
-
-      if (!phrases || phrases.length === 0) {
-        container.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">No phrases saved. Add one above!</div>';
-        return;
-      }
-
-      phrases.forEach((item, index) => {
-        let card = document.createElement('div');
-        card.className = 'card';
-
-        let contentHtml = `<button class="delete-btn" onclick="handleWebDelete(event, ${index}, this.parentElement)" title="Delete Phrase">&times;</button>`;
-
-        // Render Standard French if available
-        if (item.french) {
-          contentHtml += `
-            <div class="translation-row">
-              <div class="translation-label">Standard</div>
-              <div class="french" onclick="handleSpeechClick(event, '${escapeJsQuote(item.french)}', false)">
-                ${escapeHtml(item.french)}
-              </div>
-              <button class="action-btn" onclick="handleSpeechClick(event, '${escapeJsQuote(item.french)}', true)" title="Play slowly">🐢</button>
-              <button class="action-btn" onclick="copyToClipboard(event, '${escapeJsQuote(item.french)}', this)" title="Copy to clipboard">📋</button>
-            </div>
-          `;
-        }
-
-        // Render Slang French if available
-        if (item.slang) {
-          contentHtml += `
-            <div class="translation-row">
-              <div class="translation-label">Slang / Modern</div>
-              <div class="french slang-text" onclick="handleSpeechClick(event, '${escapeJsQuote(item.slang)}', false)">
-                ${escapeHtml(item.slang)}
-              </div>
-              <button class="action-btn" onclick="handleSpeechClick(event, '${escapeJsQuote(item.slang)}', true)" title="Play slowly">🐢</button>
-              <button class="action-btn" onclick="copyToClipboard(event, '${escapeJsQuote(item.slang)}', this)" title="Copy to clipboard">📋</button>
-            </div>
-          `;
-        }
-
-        // English Translation
-        contentHtml += `<div class="english">${escapeHtml(item.english)}</div>`;
-
-        card.innerHTML = contentHtml;
-
-        // Add swipe gesture handlers
-        attachSwipeHandler(card, index);
-
-        container.appendChild(card);
-      });
-    }
-
-    function handleSpeechClick(e, text, isSlow) {
-      e.stopPropagation();
-      unlockAudioOnIOS();
-      speakFrench(text, isSlow);
-    }
-
-    function copyToClipboard(e, text, btnElement) {
-      e.stopPropagation();
-      
-      if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(text);
-      } else {
-        let textArea = document.createElement("textarea");
-        textArea.value = text;
-        textArea.style.position = "fixed";
-        textArea.style.left = "-999999px";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        try {
-          document.execCommand('copy');
-        } catch (err) {
-          console.error('Fallback copy failed', err);
-        }
-        document.body.removeChild(textArea);
-      }
-
-      btnElement.innerText = "✓";
-      btnElement.classList.add("copied");
-
-      setTimeout(() => {
-        btnElement.innerText = "📋";
-        btnElement.classList.remove("copied");
-      }, 1500);
-    }
-
-    function handleWebDelete(e, index, cardElement) {
-      e.stopPropagation();
-      openConfirmModal(index, cardElement);
-    }
-
-    function openConfirmModal(index, cardElement) {
-      pendingDeleteIndex = index;
-      pendingDeleteCard = cardElement;
-      document.getElementById('confirmModal').classList.add('active');
-    }
-
-    function closeConfirmModal(confirmed) {
-      document.getElementById('confirmModal').classList.remove('active');
-
-      if (confirmed && pendingDeleteIndex !== null) {
-        if (pendingDeleteCard) {
-          pendingDeleteCard.style.transform = 'translateX(100vw)';
-          pendingDeleteCard.style.opacity = '0';
-          setTimeout(() => {
-            deletePhrase(pendingDeleteIndex);
-            resetModalState();
-          }, 200);
-        } else {
-          deletePhrase(pendingDeleteIndex);
-          resetModalState();
-        }
-      } else {
-        if (pendingDeleteCard) {
-          pendingDeleteCard.classList.add('animating');
-          pendingDeleteCard.style.transform = 'translateX(0px)';
-          pendingDeleteCard.style.opacity = '1';
-        }
-        resetModalState();
-      }
-    }
-
-    function resetModalState() {
-      pendingDeleteIndex = null;
-      pendingDeleteCard = null;
-    }
-
-    function attachSwipeHandler(card, index) {
-      let startX = 0;
-      let startY = 0;
-      let currentX = 0;
-      let isSwiping = false;
-
-      card.addEventListener('touchstart', (e) => {
-        if (e.target.closest('.delete-btn') || e.target.closest('.action-btn')) return;
-
-        startX = e.touches[0].clientX;
-        startY = e.touches[0].clientY;
-        isSwiping = false;
-        card.classList.remove('animating');
-      }, { passive: true });
-
-      card.addEventListener('touchmove', (e) => {
-        let touchX = e.touches[0].clientX;
-        let touchY = e.touches[0].clientY;
-        
-        let deltaX = touchX - startX;
-        let deltaY = touchY - startY;
-
-        if (!isSwiping && Math.abs(deltaY) > Math.abs(deltaX)) {
-          return;
-        }
-
-        if (deltaX > 0) {
-          isSwiping = true;
-          currentX = deltaX;
-          card.style.transform = `translateX(${deltaX}px)`;
-          card.style.opacity = Math.max(0.2, 1 - (deltaX / 300));
-        }
-      }, { passive: true });
-
-      card.addEventListener('touchend', (e) => {
-        if (e.target.closest('.delete-btn') || e.target.closest('.action-btn')) return;
-
-        card.classList.add('animating');
-
-        if (isSwiping && currentX > 110) {
-          openConfirmModal(index, card);
-        } else {
-          card.style.transform = 'translateX(0px)';
-          card.style.opacity = '1';
-        }
-
-        currentX = 0;
-        isSwiping = false;
-      });
-    }
-
-    async function deletePhrase(index) {
-      const itemToDelete = localPhrases[index];
-
-      localPhrases.splice(index, 1);
+async function handleAddPhrase() {
+  const input = document.getElementById('phraseInput');
+  const phrase = input.value.trim();
+  
+  if (!phrase) return;
+
+  unlockAudioOnIOS();
+
+  const btn = document.getElementById('addBtn');
+  btn.innerText = 'Translating...';
+  btn.disabled = true;
+
+  try {
+    const response = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ 
+        phrase: phrase,
+        mode: currentMode 
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.status === 'success') {
+      const newCard = { 
+        english: result.english, 
+        french: result.french,
+        slang: result.slang
+      };
+
+      localPhrases.unshift(newCard);
       saveToLocalStorage(localPhrases);
       renderCards(localPhrases);
 
-      try {
-        await fetch(SCRIPT_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain' },
-          body: JSON.stringify({
-            action: 'delete',
-            english: itemToDelete.english
-          })
-        });
-      } catch (e) {
-        console.error('Failed to sync deletion with Google Sheet', e);
-      }
-    }
+      input.value = '';
 
-    function saveToLocalStorage(phrases) {
-      try {
-        localStorage.setItem('saved_french_phrases', JSON.stringify(phrases));
-      } catch (e) {
-        console.error('Could not save to localStorage', e);
-      }
-    }
-
-    async function initData() {
-      checkEnvironment();
-      const stored = localStorage.getItem('saved_french_phrases');
-      
-      if (stored) {
-        try {
-          localPhrases = JSON.parse(stored);
-          renderCards(localPhrases);
-          return;
-        } catch (e) {
-          console.error('Error parsing local storage');
-        }
+      // Sequence playback: Standard -> Pause 1s -> Slang
+      if (result.french && result.slang) {
+        speakFrenchSequence(result.french, result.slang);
+      } else if (result.french) {
+        speakFrench(result.french, false);
+      } else if (result.slang) {
+        speakFrench(result.slang, false);
       }
 
-      syncWithCloud();
+    } else {
+      alert('Translation error: ' + (result.message || 'Unknown error'));
     }
 
-    async function syncWithCloud() {
-      const syncBtn = document.getElementById('syncBtn');
-      syncBtn.classList.add('spinning');
+  } catch (error) {
+    alert('Failed to connect to translation server.');
+  } finally {
+    btn.innerText = 'Translate';
+    btn.disabled = false;
+  }
+}
 
-      try {
-        const freshUrl = SCRIPT_URL + (SCRIPT_URL.includes('?') ? '&' : '?') + 'cacheBust=' + Date.now();
-        const response = await fetch(freshUrl, { method: 'GET', redirect: 'follow' });
-        const remoteData = await response.json();
+// Speaks standard French, waits for audio completion, pauses 1s, then speaks slang
+function speakFrenchSequence(firstText, secondText) {
+  // Native iOS App Handler
+  if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeSpeak) {
+    window.webkit.messageHandlers.nativeSpeak.postMessage("NORMAL|" + firstText);
+    setTimeout(() => {
+      window.webkit.messageHandlers.nativeSpeak.postMessage("NORMAL|" + secondText);
+    }, 2500); // Fixed buffer delay for iOS Native bridge
+    return;
+  }
 
-        if (Array.isArray(remoteData)) {
-          localPhrases = remoteData.reverse();
-          saveToLocalStorage(localPhrases);
-          renderCards(localPhrases);
-        }
-      } catch (err) {
-        alert('Could not sync with Google Sheets. Check connection.');
-      } finally {
-        syncBtn.classList.remove('spinning');
-      }
-    }
+  // Web Speech API Handler
+  if (!('speechSynthesis' in window)) return;
+  if (!frenchVoice) loadVoices();
 
-    function escapeHtml(str) {
-      if (!str) return '';
-      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-    }
+  window.speechSynthesis.cancel();
 
-    function escapeJsQuote(str) {
-      if (!str) return '';
-      return str.replace(/'/g, "\\'").replace(/"/g, '\\"');
-    }
+  let utterance1 = new SpeechSynthesisUtterance(firstText);
+  utterance1.lang = 'fr-FR';
+  utterance1.rate = isIOS ? 0.52 : 0.88;
+  if (frenchVoice) utterance1.voice = frenchVoice;
 
-    function handleKeyPress(e) {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        handleAddPhrase();
-      }
-    }
+  utterance1.onend = function() {
+    // 1000ms delay STARTS strictly after phrase 1 finishes
+    setTimeout(() => {
+      let utterance2 = new SpeechSynthesisUtterance(secondText);
+      utterance2.lang = 'fr-FR';
+      utterance2.rate = isIOS ? 0.52 : 0.88;
+      if (frenchVoice) utterance2.voice = frenchVoice;
+      window.speechSynthesis.speak(utterance2);
+    }, 1000);
+  };
 
-    async function handleAddPhrase() {
-      const input = document.getElementById('phraseInput');
-      const phrase = input.value.trim();
-      
-      if (!phrase) return;
+  window.speechSynthesis.speak(utterance1);
+}
 
-      unlockAudioOnIOS();
+function speakFrench(text, isSlow = false) {
+  if (!text) return;
 
-      const btn = document.getElementById('addBtn');
-      btn.innerText = 'Translating...';
-      btn.disabled = true;
+  if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeSpeak) {
+    const payload = (isSlow ? "SLOW|" : "NORMAL|") + text;
+    window.webkit.messageHandlers.nativeSpeak.postMessage(payload);
+    return;
+  }
 
-      try {
-        const response = await fetch(SCRIPT_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain' },
-          body: JSON.stringify({ 
-            phrase: phrase,
-            mode: currentMode 
-          })
-        });
+  if (!('speechSynthesis' in window)) return;
+  if (!frenchVoice) loadVoices();
 
-        const result = await response.json();
+  window.speechSynthesis.cancel();
 
-        if (result.status === 'success') {
-          const newCard = { 
-            english: result.english, 
-            french: result.french,
-            slang: result.slang
-          };
+  let utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'fr-FR';
 
-          localPhrases.unshift(newCard);
-          saveToLocalStorage(localPhrases);
-          renderCards(localPhrases);
+  if (isIOS) {
+    utterance.rate = isSlow ? 0.25 : 0.52;
+  } else {
+    utterance.rate = isSlow ? 0.5 : 0.88;
+  }
 
-          input.value = '';
+  utterance.pitch = 0.95;
 
-          // Sequence playback: Standard -> 1s delay -> Slang
-          if (result.french && result.slang) {
-            speakFrench(result.french, false);
-            setTimeout(() => {
-              speakFrench(result.slang, false);
-            }, 1000);
-          } else if (result.french) {
-            speakFrench(result.french, false);
-          } else if (result.slang) {
-            speakFrench(result.slang, false);
-          }
+  if (frenchVoice) {
+    utterance.voice = frenchVoice;
+  }
 
-        } else {
-          alert('Translation error: ' + (result.message || 'Unknown error'));
-        }
-
-      } catch (error) {
-        alert('Failed to connect to translation server.');
-      } finally {
-        btn.innerText = 'Translate';
-        btn.disabled = false;
-      }
-    }
-
-    function unlockAudioOnIOS() {
-      if ('speechSynthesis' in window && !window.webkit?.messageHandlers?.nativeSpeak) {
-        let silentUtterance = new SpeechSynthesisUtterance('');
-        silentUtterance.volume = 0;
-        window.speechSynthesis.speak(silentUtterance);
-      }
-    }
-
-    function speakFrench(text, isSlow = false) {
-      if (!text) return;
-
-      if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeSpeak) {
-        const payload = (isSlow ? "SLOW|" : "NORMAL|") + text;
-        window.webkit.messageHandlers.nativeSpeak.postMessage(payload);
-        return;
-      }
-
-      if (!('speechSynthesis' in window)) return;
-      if (!frenchVoice) loadVoices();
-
-      window.speechSynthesis.cancel();
-
-      let utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'fr-FR';
-
-      if (isIOS) {
-        utterance.rate = isSlow ? 0.25 : 0.52;
-      } else {
-        utterance.rate = isSlow ? 0.5 : 0.88;
-      }
-
-      utterance.pitch = 0.95;
-
-      if (frenchVoice) {
-        utterance.voice = frenchVoice;
-      }
-
-      window.speechSynthesis.speak(utterance);
-    }
-
-    initData();
-  </script>
-</body>
-</html>
+  window.speechSynthesis.speak(utterance);
+}
