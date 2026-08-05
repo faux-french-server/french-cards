@@ -742,7 +742,6 @@
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFm4CMsRhjso3PoojdVf1X3ucuBdiznvcfNrcbEmqrnaoRYkOcn5vWbPOGYjaT4BLy/exec';
     let frenchVoice = null;
     let localPhrases = [];
-    let categoriesList = ["morning", "evening", "other"];
     let pendingDeleteIndex = null;
     let pendingDeleteCard = null;
     let activeCategoryChangeIndex = null;
@@ -772,25 +771,60 @@
       }
     }
 
+    // Dynamic extraction: only categories currently assigned to at least 1 phrase
+    function getActiveCategories() {
+      const activeCats = new Set();
+      
+      // Default base categories to include if present or needed
+      const standardDefaults = ["morning", "evening", "other"];
+
+      localPhrases.forEach(item => {
+        const cat = (item.category || 'other').trim().toLowerCase();
+        if (cat) activeCats.add(cat);
+      });
+
+      // Sort alphabetically for clean UI
+      const sortedList = Array.from(activeCats).sort();
+
+      // Ensure 'other' is available if no categories exist
+      if (sortedList.length === 0) {
+        return standardDefaults;
+      }
+
+      return sortedList;
+    }
+
     function updateCategoryDropdowns() {
+      const activeCategories = getActiveCategories();
+
       // 1. Update Header Filter Dropdown
       const select = document.getElementById('categoryFilter');
-      const selectedVal = currentCategoryFilter;
+      const previousSelected = currentCategoryFilter;
       select.innerHTML = '<option value="all">📁 All Categories</option>';
       
-      categoriesList.forEach(cat => {
+      activeCategories.forEach(cat => {
         const option = document.createElement('option');
         option.value = cat;
         option.textContent = `${getCategoryEmoji(cat)} ${cat.charAt(0).toUpperCase() + cat.slice(1)}`;
         select.appendChild(option);
       });
-      select.value = selectedVal;
+
+      // If active filter no longer exists (e.g. last item deleted), reset to 'all'
+      if (activeCategories.includes(previousSelected)) {
+        select.value = previousSelected;
+      } else {
+        currentCategoryFilter = 'all';
+        select.value = 'all';
+      }
 
       // 2. Update Modal Quick-Picker Options
       const optionsContainer = document.getElementById('categoryPickerOptions');
       optionsContainer.innerHTML = '';
 
-      categoriesList.forEach(cat => {
+      // Standard base options plus any active custom categories
+      const pickerOptions = Array.from(new Set(["morning", "evening", "other", ...activeCategories])).sort();
+
+      pickerOptions.forEach(cat => {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'category-option-btn';
@@ -808,16 +842,6 @@
       optionsContainer.appendChild(addNewBtn);
     }
 
-    function registerCategory(newCat) {
-      const cleanCat = newCat.trim().toLowerCase();
-      if (cleanCat && !categoriesList.includes(cleanCat)) {
-        categoriesList.push(cleanCat);
-        saveCategoriesToLocalStorage(categoriesList);
-        updateCategoryDropdowns();
-      }
-      return cleanCat;
-    }
-
     function openNewCategoryModal() {
       document.getElementById('newCategoryInput').value = '';
       document.getElementById('newCategoryModal').classList.add('active');
@@ -826,20 +850,18 @@
 
     function closeNewCategoryModal(confirmed) {
       const input = document.getElementById('newCategoryInput');
-      const val = input.value.trim();
+      const val = input.value.trim().toLowerCase();
       document.getElementById('newCategoryModal').classList.remove('active');
 
       if (confirmed && val) {
-        const cleanCat = registerCategory(val);
-        if (cleanCat) {
-          updateCardCategory(cleanCat);
-        }
+        updateCardCategory(val);
       }
     }
 
     function openCategoryPickerModal(e, index) {
       e.stopPropagation();
       activeCategoryChangeIndex = index;
+      updateCategoryDropdowns(); // Ensure picker options are updated
       document.getElementById('categoryPickerModal').classList.add('active');
     }
 
@@ -851,7 +873,7 @@
     async function updateCardCategory(newCat) {
       if (activeCategoryChangeIndex !== null && localPhrases[activeCategoryChangeIndex]) {
         const item = localPhrases[activeCategoryChangeIndex];
-        const cleanCat = registerCategory(newCat);
+        const cleanCat = newCat.trim().toLowerCase();
         item.category = cleanCat;
         saveToLocalStorage(localPhrases);
         renderCards(localPhrases);
@@ -932,6 +954,8 @@
     }
 
     function renderCards(phrases) {
+      updateCategoryDropdowns();
+
       const container = document.getElementById('list');
       container.innerHTML = '';
 
@@ -1189,32 +1213,13 @@
       }
     }
 
-    function saveCategoriesToLocalStorage(cats) {
-      try {
-        localStorage.setItem('saved_french_categories', JSON.stringify(cats));
-      } catch (e) {
-        console.error('Could not save categories to localStorage', e);
-      }
-    }
-
     async function initData() {
       checkEnvironment();
-
-      const storedCats = localStorage.getItem('saved_french_categories');
-      if (storedCats) {
-        try {
-          categoriesList = JSON.parse(storedCats);
-        } catch (e) {}
-      }
-      updateCategoryDropdowns();
 
       const stored = localStorage.getItem('saved_french_phrases');
       if (stored) {
         try {
           localPhrases = JSON.parse(stored);
-          localPhrases.forEach(p => {
-            if (p.category) registerCategory(p.category);
-          });
           renderCards(localPhrases);
           return;
         } catch (e) {
@@ -1239,16 +1244,9 @@
           phrasesData = remoteData;
         } else if (remoteData && remoteData.phrases) {
           phrasesData = remoteData.phrases;
-          if (Array.isArray(remoteData.categories)) {
-            remoteData.categories.forEach(c => registerCategory(c));
-          }
         }
 
         localPhrases = phrasesData.reverse();
-        localPhrases.forEach(p => {
-          if (p.category) registerCategory(p.category);
-        });
-
         saveToLocalStorage(localPhrases);
         renderCards(localPhrases);
 
