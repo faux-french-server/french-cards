@@ -11,10 +11,10 @@
     .sticky-header {
       position: sticky;
       top: 0;
-      background: #f4f4f9;
+      background-color: #f4f4f9; /* Solid opaque light background */
       padding-top: 10px;
       padding-bottom: 12px;
-      z-index: 100;
+      z-index: 1000; /* Stays above scrolling content */
       border-bottom: 1px solid #cbd5e1;
       margin-bottom: 15px;
     }
@@ -118,6 +118,7 @@
       box-shadow: 0 2px 5px rgba(0,0,0,0.08); 
       touch-action: pan-y; /* Allows vertical scrolling while tracking horizontal gestures */
       will-change: transform;
+      z-index: 1;
     }
 
     /* Smooth transition when sliding out or snapping back */
@@ -233,7 +234,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 1000;
+      z-index: 2000;
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.2s ease;
@@ -307,12 +308,12 @@
     /* Automatic Dark Mode Styles */
     @media (prefers-color-scheme: dark) {
       body {
-        background: #0f172a;
+        background-color: #0f172a;
         color: #f8fafc;
       }
 
       .sticky-header {
-        background: #0f172a;
+        background-color: #0f172a; /* Solid opaque dark background */
         border-bottom-color: #334155;
       }
 
