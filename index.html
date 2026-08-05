@@ -475,7 +475,7 @@
       gap: 8px;
       margin-top: 15px;
       max-height: 250px;
-      overflow-y: auto;
+      overflow-y-auto;
     }
 
     .category-option-btn {
@@ -728,7 +728,7 @@
 
     <div class="header-sub-row">
       <select class="category-filter-select" id="categoryFilter" onchange="filterByCategory()">
-        <option value="all">All Categories</option>
+        <option value="all">⚪ All Categories</option>
       </select>
 
       <button class="study-btn" id="studyBtn" onclick="toggleStudyMode()">
@@ -835,6 +835,32 @@
     }
     checkEnvironment();
 
+    // Converts Hex color into an inline SVG colored circle data URL for native <select> options
+    function getColorCircleDataUrl(hex) {
+      if (!hex) hex = '#cbd5e1';
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="${hex}" stroke="rgba(0,0,0,0.15)" stroke-width="1.5"/></svg>`;
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    }
+
+    // Helper map to convert HEX colors to matching Unicode circles for native dropdowns
+    function getColoredCircleEmoji(hex) {
+      if (!hex) return '⚪';
+      const r = parseInt(hex.substr(1, 2), 16) || 0;
+      const g = parseInt(hex.substr(2, 2), 16) || 0;
+      const b = parseInt(hex.substr(4, 2), 16) || 0;
+
+      if (r > 200 && g < 100 && b < 100) return '🔴';
+      if (r > 200 && g > 120 && b < 100) return '🟠';
+      if (r > 200 && g > 200 && b < 100) return '🟡';
+      if (g > 150 && r < 120) return '🟢';
+      if (b > 180 && r < 120) return '🔵';
+      if (r > 140 && b > 140 && g < 100) return '🟣';
+      if (r > 150 && g > 100 && b > 100) return '🟤';
+      if (r < 80 && g < 80 && b < 80) return '⬛';
+      
+      return '🟡'; // Default fallback circle
+    }
+
     // Map existing category colors from localPhrases and standard fallbacks
     function buildCategoryColorMap() {
       localPhrases.forEach(item => {
@@ -864,12 +890,15 @@
 
       const select = document.getElementById('categoryFilter');
       const previousSelected = currentCategoryFilter;
-      select.innerHTML = '<option value="all">All Categories</option>';
+      select.innerHTML = '<option value="all">⚪ All Categories</option>';
       
       activeCategories.forEach(cat => {
         const option = document.createElement('option');
+        const catColor = categoryColors[cat] || defaultCategoryColors[cat] || '#cbd5e1';
+        const circleIcon = getColoredCircleEmoji(catColor);
+
         option.value = cat;
-        option.textContent = cat.charAt(0).toUpperCase() + cat.slice(1);
+        option.textContent = `${circleIcon} ${cat.charAt(0).toUpperCase() + cat.slice(1)}`;
         select.appendChild(option);
       });
 
