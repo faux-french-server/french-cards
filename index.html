@@ -253,7 +253,9 @@
 
     function handleWebDelete(e, index) {
       e.stopPropagation();
-      deletePhrase(index);
+      if (confirm('Are you sure you want to delete this phrase?')) {
+        deletePhrase(index);
+      }
     }
 
     function handleSlowPlay(e, index) {
@@ -302,12 +304,21 @@
         card.classList.add('animating');
 
         if (isSwiping && currentX > 110) {
+          // Animate sliding off screen first
           card.style.transform = 'translateX(100vw)';
           card.style.opacity = '0';
 
           setTimeout(() => {
-            deletePhrase(index);
-          }, 250);
+            // Ask for confirmation
+            const confirmed = confirm('Are you sure you want to delete this phrase?');
+            if (confirmed) {
+              deletePhrase(index);
+            } else {
+              // Reset card position if user cancels
+              card.style.transform = 'translateX(0px)';
+              card.style.opacity = '1';
+            }
+          }, 200);
         } else {
           card.style.transform = 'translateX(0px)';
           card.style.opacity = '1';
