@@ -895,12 +895,21 @@
     function attachCategoryButtonGestures(btn, categoryName, currentColor) {
       let pressTimer = null;
       let isLongPress = false;
+      let isTargetingContent = false;
 
       function triggerHaptic() {
         if (navigator.vibrate) navigator.vibrate(40);
       }
 
-      function startPress() {
+      function checkContentTarget(e) {
+        const target = e.target;
+        return target.tagName === 'SPAN' || target.classList.contains('color-indicator');
+      }
+
+      function startPress(e) {
+        isTargetingContent = checkContentTarget(e);
+        if (!isTargetingContent) return;
+
         isLongPress = false;
         pressTimer = setTimeout(() => {
           isLongPress = true;
@@ -919,18 +928,20 @@
       btn.addEventListener('touchstart', startPress, { passive: true });
       btn.addEventListener('touchend', (e) => {
         cancelPress();
-        if (!isLongPress) {
+        if (isTargetingContent && !isLongPress) {
           updateCardCategory(categoryName, currentColor);
         }
+        isTargetingContent = false;
       });
       btn.addEventListener('touchmove', cancelPress, { passive: true });
 
       btn.addEventListener('mousedown', startPress);
-      btn.addEventListener('mouseup', () => {
+      btn.addEventListener('mouseup', (e) => {
         cancelPress();
-        if (!isLongPress) {
+        if (isTargetingContent && !isLongPress) {
           updateCardCategory(categoryName, currentColor);
         }
+        isTargetingContent = false;
       });
       btn.addEventListener('mouseleave', cancelPress);
     }
