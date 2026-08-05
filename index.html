@@ -711,16 +711,13 @@
     </div>
   </div>
 
-  <!-- Category Quick-Picker Modal -->
-  <div class="modal-overlay" id="categoryPickerModal">
+  <!-- Category Quick-Picker Modal (Dismissible by tapping outside) -->
+  <div class="modal-overlay" id="categoryPickerModal" onclick="handleCategoryOverlayClick(event)">
     <div class="modal-box">
       <div class="modal-title">Change Category</div>
       <div class="modal-message">Select a category for this phrase:</div>
       <div class="category-picker-options" id="categoryPickerOptions">
         <!-- Options injected dynamically -->
-      </div>
-      <div style="margin-top: 15px;">
-        <button class="modal-btn modal-btn-cancel" style="width: 100%;" onclick="closeCategoryPickerModal()">Cancel</button>
       </div>
     </div>
   </div>
@@ -846,6 +843,13 @@
     function closeCategoryPickerModal() {
       activeCategoryChangeIndex = null;
       document.getElementById('categoryPickerModal').classList.remove('active');
+    }
+
+    function handleCategoryOverlayClick(e) {
+      // If the user taps outside the modal box (on the overlay backdrop), close the popup
+      if (e.target.id === 'categoryPickerModal') {
+        closeCategoryPickerModal();
+      }
     }
 
     async function updateCardCategory(newCat) {
