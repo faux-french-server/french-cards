@@ -479,6 +479,9 @@
     }
 
     .category-option-btn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       padding: 12px;
       border-radius: 10px;
       border: 1px solid #cbd5e1;
@@ -491,14 +494,48 @@
       transition: background-color 0.15s ease;
     }
 
+    .category-option-btn .color-indicator {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 1px solid rgba(0,0,0,0.15);
+      display: inline-block;
+    }
+
     .category-option-btn.add-new-btn {
       background: #eff6ff;
       border-color: #93c5fd;
       color: #1d4ed8;
+      justify-content: center;
     }
 
     .category-option-btn:active {
       background: #e2e8f0;
+    }
+
+    /* Color Selection Row inside New Category Modal */
+    .color-picker-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 15px;
+      padding: 0 5px;
+    }
+
+    .color-picker-label {
+      font-size: 14px;
+      color: #475569;
+      font-weight: 600;
+    }
+
+    .color-picker-input {
+      border: none;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      background: none;
+      padding: 0;
     }
 
     body.is-native-app .delete-btn {
@@ -561,21 +598,6 @@
       .card {
         background: #1e293b;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-      }
-
-      .category-badge.morning {
-        background: #78350f;
-        color: #fef3c7;
-      }
-
-      .category-badge.evening {
-        background: #312e81;
-        color: #e0e7ff;
-      }
-
-      .category-badge.other {
-        background: #334155;
-        color: #cbd5e1;
       }
 
       .card.study-card {
@@ -677,6 +699,10 @@
       .category-option-btn:active {
         background: #475569;
       }
+
+      .color-picker-label {
+        color: #cbd5e1;
+      }
     }
   </style>
 </head>
@@ -684,7 +710,6 @@
 
   <!-- Fixed Top Header Container -->
   <div class="sticky-header">
-    <!-- Top Row: Title + Sync Button -->
     <div class="header-top-row">
       <h2>🇫🇷 French Phrases</h2>
       <button class="sync-btn" id="syncBtn" onclick="syncWithCloud()" title="Sync from Google Sheet">
@@ -697,7 +722,6 @@
       </button>
     </div>
 
-    <!-- Sub Row: Category Filter + Study Mode Toggle -->
     <div class="header-sub-row">
       <select class="category-filter-select" id="categoryFilter" onchange="filterByCategory()">
         <option value="all">All Categories</option>
@@ -708,7 +732,6 @@
       </button>
     </div>
 
-    <!-- Input Form -->
     <form class="add-phrase-container" onsubmit="event.preventDefault(); handleAddPhrase();">
       <input type="text" id="phraseInput" placeholder="Enter new phrase..." onkeydown="handleKeyPress(event)" />
       <button type="submit" id="addBtn">Translate</button>
@@ -734,18 +757,22 @@
     <div class="modal-box">
       <div class="modal-title">Change Category</div>
       <div class="modal-message">Select a category for this phrase:</div>
-      <div class="category-picker-options" id="categoryPickerOptions">
-        <!-- Options injected dynamically -->
-      </div>
+      <div class="category-picker-options" id="categoryPickerOptions"></div>
     </div>
   </div>
 
-  <!-- New Category Input Modal -->
+  <!-- New Category Input + Color Picker Modal -->
   <div class="modal-overlay" id="newCategoryModal">
     <div class="modal-box">
       <div class="modal-title">New Category</div>
-      <div class="modal-message">Type a name for the new category:</div>
+      <div class="modal-message">Choose a name and color:</div>
       <input type="text" class="modal-input" id="newCategoryInput" placeholder="Category name..." />
+      
+      <div class="color-picker-row">
+        <span class="color-picker-label">Badge Color</span>
+        <input type="color" class="color-picker-input" id="newCategoryColor" value="#007aff" />
+      </div>
+
       <div class="modal-buttons">
         <button class="modal-btn modal-btn-cancel" onclick="closeNewCategoryModal(false)">Cancel</button>
         <button class="modal-btn modal-btn-confirm" onclick="closeNewCategoryModal(true)">Create</button>
@@ -757,6 +784,7 @@
     const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFm4CMsRhjso3PoojdVf1X3ucuBdiznvcfNrcbEmqrnaoRYkOcn5vWbPOGYjaT4BLy/exec';
     let frenchVoice = null;
     let localPhrases = [];
+    let categoryColors = {}; // Maps category name -> hex color
     let pendingDeleteIndex = null;
     let pendingDeleteCard = null;
     let activeCategoryChangeIndex = null;
@@ -777,20 +805,27 @@
     }
     checkEnvironment();
 
+    // Map existing category colors from localPhrases
+    function buildCategoryColorMap() {
+      localPhrases.forEach(item => {
+        const cat = (item.category || '').trim().toLowerCase();
+        if (cat && item.color) {
+          categoryColors[cat] = item.color;
+        }
+      });
+    }
+
     function getActiveCategories() {
       const activeCats = new Set();
-      
       localPhrases.forEach(item => {
         const cat = (item.category || '').trim().toLowerCase();
         if (cat) activeCats.add(cat);
       });
-
       return Array.from(activeCats).sort();
     }
 
     function updateCategoryDropdowns() {
-      localStorage.removeItem('saved_french_categories');
-
+      buildCategoryColorMap();
       const activeCategories = getActiveCategories();
 
       const select = document.getElementById('categoryFilter');
@@ -818,8 +853,12 @@
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'category-option-btn';
-        btn.innerHTML = escapeHtml(cat);
-        btn.onclick = () => updateCardCategory(cat);
+        
+        const catColor = categoryColors[cat] || '';
+        const colorDot = catColor ? `<span class="color-indicator" style="background:${catColor}"></span>` : '';
+        
+        btn.innerHTML = `<span>${escapeHtml(cat)}</span>${colorDot}`;
+        btn.onclick = () => updateCardCategory(cat, catColor);
         optionsContainer.appendChild(btn);
       });
 
@@ -833,17 +872,22 @@
 
     function openNewCategoryModal() {
       document.getElementById('newCategoryInput').value = '';
+      document.getElementById('newCategoryColor').value = '#007aff';
       document.getElementById('newCategoryModal').classList.add('active');
       setTimeout(() => document.getElementById('newCategoryInput').focus(), 100);
     }
 
     function closeNewCategoryModal(confirmed) {
       const input = document.getElementById('newCategoryInput');
+      const colorInput = document.getElementById('newCategoryColor');
       const val = input.value.trim().toLowerCase();
+      const selectedColor = colorInput.value;
+      
       document.getElementById('newCategoryModal').classList.remove('active');
 
       if (confirmed && val) {
-        updateCardCategory(val);
+        categoryColors[val] = selectedColor;
+        updateCardCategory(val, selectedColor);
       }
     }
 
@@ -865,11 +909,13 @@
       }
     }
 
-    async function updateCardCategory(newCat) {
+    async function updateCardCategory(newCat, colorHex) {
       if (activeCategoryChangeIndex !== null && localPhrases[activeCategoryChangeIndex]) {
         const item = localPhrases[activeCategoryChangeIndex];
         const cleanCat = newCat.trim().toLowerCase();
         item.category = cleanCat;
+        if (colorHex) item.color = colorHex;
+
         saveToLocalStorage(localPhrases);
         renderCards(localPhrases);
 
@@ -880,7 +926,8 @@
             body: JSON.stringify({
               action: 'updateCategory',
               english: item.english,
-              category: cleanCat
+              category: cleanCat,
+              color: colorHex || item.color || ''
             })
           });
         } catch (e) {
@@ -888,6 +935,28 @@
         }
       }
       closeCategoryPickerModal();
+    }
+
+    // Adjust text color based on background brightness
+    function getContrastTextColor(hex) {
+      if (!hex || !hex.startsWith('#') || hex.length !== 7) return null;
+      const r = parseInt(hex.substr(1, 2), 16);
+      const g = parseInt(hex.substr(2, 2), 16);
+      const b = parseInt(hex.substr(4, 2), 16);
+      const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+      return brightness > 128 ? '#1e293b' : '#ffffff';
+    }
+
+    function renderCategoryBadge(catName, colorHex) {
+      const cleanCat = (catName || 'uncategorized').toLowerCase();
+      let styleAttr = '';
+
+      if (colorHex) {
+        const textColor = getContrastTextColor(colorHex) || '#ffffff';
+        styleAttr = `style="background-color: ${colorHex}; color: ${textColor};"`;
+      }
+
+      return `<span class="category-badge ${cleanCat}" ${styleAttr} onclick="openCategoryPickerModal(event, arguments[0])">${cleanCat}</span>`;
     }
 
     function filterByCategory() {
@@ -974,16 +1043,16 @@
         const index = item.originalIndex;
         let card = document.createElement('div');
         const cat = (item.category || 'uncategorized').toLowerCase();
+        const catColor = item.color || categoryColors[cat] || '';
         card.setAttribute('data-index', index);
 
         if (isStudyMode && !revealedCardIndices.has(index)) {
           card.className = 'card study-card';
           
+          let badgeHtml = renderCategoryBadge(cat, catColor).replace('arguments[0]', index);
           let contentHtml = `<button class="delete-btn" onclick="handleWebDelete(event, ${index}, this.parentElement)" title="Delete Phrase">&times;</button>`;
           contentHtml += `
-            <div>
-              <span class="category-badge ${cat}" onclick="openCategoryPickerModal(event, ${index})">${cat}</span>
-            </div>
+            <div>${badgeHtml}</div>
             <div class="english-prompt" onclick="revealStudyCard(${index}, localPhrases[${index}])">
               ${escapeHtml(item.english)}
             </div>
@@ -1009,8 +1078,9 @@
           };
         }
 
+        let badgeHtml = renderCategoryBadge(cat, catColor).replace('arguments[0]', index);
         let contentHtml = `<button class="delete-btn" onclick="handleWebDelete(event, ${index}, this.parentElement)" title="Delete Phrase">&times;</button>`;
-        contentHtml += `<div><span class="category-badge ${cat}" onclick="openCategoryPickerModal(event, ${index})">${cat}</span></div>`;
+        contentHtml += `<div>${badgeHtml}</div>`;
 
         if (item.french) {
           contentHtml += `
@@ -1136,7 +1206,6 @@
       let ghostCard = null;
       let dragOffsetY = 0;
 
-      // Auto-scroll variables
       let autoScrollFrame = null;
       let lastTouchY = 0;
 
@@ -1154,18 +1223,16 @@
       function handleAutoScrollAndReorder() {
         if (!isDragging) return;
 
-        const scrollThreshold = 120; // Distance from screen edge to trigger scrolling
-        const maxScrollSpeed = 15;   // Maximum pixels per frame
+        const scrollThreshold = 120;
+        const maxScrollSpeed = 15;
         const viewportHeight = window.innerHeight;
 
         let scrollDelta = 0;
 
         if (lastTouchY < scrollThreshold) {
-          // Scroll Up when finger is near top
           const intensity = (scrollThreshold - lastTouchY) / scrollThreshold;
           scrollDelta = -Math.ceil(intensity * maxScrollSpeed);
         } else if (lastTouchY > viewportHeight - scrollThreshold) {
-          // Scroll Down when finger is near bottom
           const intensity = (lastTouchY - (viewportHeight - scrollThreshold)) / scrollThreshold;
           scrollDelta = Math.ceil(intensity * maxScrollSpeed);
         }
@@ -1173,13 +1240,11 @@
         if (scrollDelta !== 0) {
           window.scrollBy(0, scrollDelta);
 
-          // Keep ghost card following finger position during scroll
           if (ghostCard) {
             ghostCard.style.top = (lastTouchY - dragOffsetY) + 'px';
           }
         }
 
-        // Live Reorder logic based on current drag position
         const container = document.getElementById('list');
         const cards = Array.from(container.querySelectorAll('.card:not(.dragging-active)'));
 
@@ -1236,7 +1301,6 @@
 
           document.body.appendChild(ghostCard);
 
-          // Start continuous auto-scroll and reorder animation loop
           stopAutoScroll();
           autoScrollFrame = requestAnimationFrame(handleAutoScrollAndReorder);
         }, 400);
@@ -1330,8 +1394,6 @@
       saveToLocalStorage(localPhrases);
       renderCards(localPhrases);
 
-      // Send phrases in top-to-bottom UI order.
-      // Code.gs writes them backwards so App Top = Sheet Bottom.
       try {
         const orderedEnglishPhrases = localPhrases.map(p => p.english);
         await fetch(SCRIPT_URL, {
@@ -1410,7 +1472,6 @@
           phrasesData = remoteData.phrases;
         }
 
-        // Reverses array on fetch so Google Sheet Bottom = App Top
         localPhrases = phrasesData.reverse();
         saveToLocalStorage(localPhrases);
         renderCards(localPhrases);
@@ -1469,7 +1530,8 @@
             english: result.english, 
             french: result.french,
             slang: result.slang,
-            category: result.category || category
+            category: result.category || category,
+            color: result.color || ''
           };
 
           localPhrases.unshift(newCard);
