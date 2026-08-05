@@ -233,21 +233,6 @@
       opacity: 0.8;
     }
 
-    .category-badge.morning {
-      background: #fef3c7;
-      color: #92400e;
-    }
-
-    .category-badge.evening {
-      background: #e0e7ff;
-      color: #3730a3;
-    }
-
-    .category-badge.other {
-      background: #f1f5f9;
-      color: #475569;
-    }
-
     /* Revealed state styling in Study Mode */
     .card.study-revealed {
       cursor: pointer;
@@ -475,7 +460,7 @@
       gap: 8px;
       margin-top: 15px;
       max-height: 250px;
-      overflow-y-auto;
+      overflow-y: auto;
     }
 
     .category-option-btn {
@@ -818,7 +803,7 @@
 
     // Fallback theme colors for standard default categories
     const defaultCategoryColors = {
-      'morning': '#fef3c7',
+      'morning': '#22c55e',
       'evening': '#e0e7ff',
       'other': '#f1f5f9'
     };
@@ -835,30 +820,47 @@
     }
     checkEnvironment();
 
-    // Converts Hex color into an inline SVG colored circle data URL for native <select> options
-    function getColorCircleDataUrl(hex) {
-      if (!hex) hex = '#cbd5e1';
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="${hex}" stroke="rgba(0,0,0,0.15)" stroke-width="1.5"/></svg>`;
-      return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
-    }
-
-    // Helper map to convert HEX colors to matching Unicode circles for native dropdowns
+    // HSL-based precise color classifier mapping hex values accurately to colored emojis
     function getColoredCircleEmoji(hex) {
-      if (!hex) return '⚪';
-      const r = parseInt(hex.substr(1, 2), 16) || 0;
-      const g = parseInt(hex.substr(2, 2), 16) || 0;
-      const b = parseInt(hex.substr(4, 2), 16) || 0;
+      if (!hex || !hex.startsWith('#') || hex.length !== 7) return '⚪';
 
-      if (r > 200 && g < 100 && b < 100) return '🔴';
-      if (r > 200 && g > 120 && b < 100) return '🟠';
-      if (r > 200 && g > 200 && b < 100) return '🟡';
-      if (g > 150 && r < 120) return '🟢';
-      if (b > 180 && r < 120) return '🔵';
-      if (r > 140 && b > 140 && g < 100) return '🟣';
-      if (r > 150 && g > 100 && b > 100) return '🟤';
-      if (r < 80 && g < 80 && b < 80) return '⬛';
-      
-      return '🟡'; // Default fallback circle
+      // Fixed String Slicing Offsets (#RRGGBB)
+      const r = parseInt(hex.substr(1, 2), 16) / 255;
+      const g = parseInt(hex.substr(3, 2), 16) / 255;
+      const b = parseInt(hex.substr(5, 2), 16) / 255;
+
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      let h, s, l = (max + min) / 2;
+
+      if (max === min) {
+        h = s = 0; // achromatic
+      } else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+          case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+          case g: h = (b - r) / d + 2; break;
+          case b: h = (r - g) / d + 4; break;
+        }
+        h /= 6;
+      }
+
+      const hueDeg = h * 360;
+
+      if (l > 0.90 && s < 0.2) return '⚪';
+      if (l < 0.15) return '⬛';
+      if (s < 0.15) return '⚪';
+
+      if (hueDeg >= 345 || hueDeg < 15) return '🔴';
+      if (hueDeg >= 15 && hueDeg < 45) return '🟠';
+      if (hueDeg >= 45 && hueDeg < 70) return '🟡';
+      if (hueDeg >= 70 && hueDeg < 165) return '🟢';
+      if (hueDeg >= 165 && hueDeg < 260) return '🔵';
+      if (hueDeg >= 260 && hueDeg < 310) return '🟣';
+      if (hueDeg >= 310 && hueDeg < 345) return '🔴';
+
+      return '🟡';
     }
 
     // Map existing category colors from localPhrases and standard fallbacks
@@ -917,13 +919,11 @@
         btn.type = 'button';
         btn.className = 'category-option-btn';
         
-        // Find color from mapped store or default colors
         const catColor = categoryColors[cat] || defaultCategoryColors[cat] || '#cbd5e1';
         const colorDot = `<span class="color-indicator" style="background:${catColor}"></span>`;
         
         btn.innerHTML = `<span>${escapeHtml(cat)}</span>${colorDot}`;
 
-        // Add press & hold gesture to change category color
         attachCategoryButtonGestures(btn, cat, catColor);
 
         optionsContainer.appendChild(btn);
@@ -996,7 +996,6 @@
       if (confirmed && cat) {
         categoryColors[cat] = selectedColor;
 
-        // Update all local items matching this category
         localPhrases.forEach(item => {
           if ((item.category || '').trim().toLowerCase() === cat) {
             item.color = selectedColor;
@@ -1006,7 +1005,6 @@
         saveToLocalStorage(localPhrases);
         renderCards(localPhrases);
 
-        // Sync with Google Sheets backend
         try {
           await fetch(SCRIPT_URL, {
             method: 'POST',
@@ -1097,13 +1095,10 @@
     function getContrastTextColor(hex) {
       if (!hex || !hex.startsWith('#') || hex.length !== 7) return null;
       const r = parseInt(hex.substr(1, 2), 16);
-      const g = parseInt(hex.substr(2, 2), 16);
-      const b = parseInt(hex.substr(4, 2), 16);
+      const g = parseInt(hex.substr(3, 2), 16);
+      const b = parseInt(hex.substr(5, 2), 16);
       
-      // Calculate relative luminance according to WCAG guidelines
       const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-      
-      // Dark text for bright backgrounds, white text for dark backgrounds
       return luminance > 0.6 ? '#0f172a' : '#ffffff';
     }
 
@@ -1111,10 +1106,12 @@
       const cleanCat = (catName || 'uncategorized').toLowerCase();
       let styleAttr = '';
 
-      if (colorHex) {
-        const textColor = getContrastTextColor(colorHex) || '#0f172a';
+      const effectiveColor = colorHex || categoryColors[cleanCat] || defaultCategoryColors[cleanCat];
+
+      if (effectiveColor) {
+        const textColor = getContrastTextColor(effectiveColor) || '#0f172a';
         const borderStyle = textColor === '#0f172a' ? 'border: 1px solid rgba(0,0,0,0.1);' : 'border: 1px solid rgba(255,255,255,0.2);';
-        styleAttr = `style="background-color: ${colorHex}; color: ${textColor}; ${borderStyle}"`;
+        styleAttr = `style="background-color: ${effectiveColor}; color: ${textColor}; ${borderStyle}"`;
       }
 
       return `<span class="category-badge ${cleanCat}" ${styleAttr} onclick="openCategoryPickerModal(event, arguments[0])">${cleanCat}</span>`;
