@@ -124,7 +124,7 @@
 
     .add-phrase-container {
       display: flex;
-      gap: 6px;
+      gap: 8px;
       justify-content: center;
       max-width: 500px;
       margin: 0 auto;
@@ -133,29 +133,17 @@
     .add-phrase-container input {
       flex: 1;
       min-width: 0;
-      padding: 10px 12px;
+      padding: 10px 14px;
       border: 1px solid #ccc;
       border-radius: 10px;
-      font-size: 14px;
+      font-size: 15px;
       outline: none;
       background: #ffffff;
       color: #1e293b;
     }
 
-    .category-add-select {
-      background: #ffffff;
-      border: 1px solid #ccc;
-      border-radius: 10px;
-      padding: 10px 8px;
-      font-size: 13px;
-      font-weight: 500;
-      color: #334155;
-      outline: none;
-      cursor: pointer;
-    }
-
     .add-phrase-container button {
-      padding: 10px 14px;
+      padding: 10px 16px;
       background-color: #007aff;
       color: white;
       border: none;
@@ -521,7 +509,7 @@
         border-color: #007aff;
       }
 
-      .add-phrase-container input, .category-add-select {
+      .add-phrase-container input {
         background: #1e293b;
         border-color: #334155;
         color: #f8fafc;
@@ -681,13 +669,6 @@
     <!-- Input Form -->
     <form class="add-phrase-container" onsubmit="event.preventDefault(); handleAddPhrase();">
       <input type="text" id="phraseInput" placeholder="Enter new phrase..." onkeydown="handleKeyPress(event)" />
-      
-      <select class="category-add-select" id="newPhraseCategory">
-        <option value="other">Other</option>
-        <option value="morning">Morning</option>
-        <option value="evening">Evening</option>
-      </select>
-
       <button type="submit" id="addBtn">Translate</button>
     </form>
   </div>
@@ -710,7 +691,7 @@
   <div class="modal-overlay" id="categoryPickerModal">
     <div class="modal-box">
       <div class="modal-title">Change Category</div>
-      <div class="modal-message">Select a new category for this phrase:</div>
+      <div class="modal-message">Select a category for this phrase:</div>
       <div class="category-picker-options">
         <button class="category-option-btn" onclick="updateCardCategory('morning')">🌅 Morning</button>
         <button class="category-option-btn" onclick="updateCardCategory('evening')">🌙 Evening</button>
@@ -1138,9 +1119,8 @@
 
     async function handleAddPhrase() {
       const input = document.getElementById('phraseInput');
-      const categorySelect = document.getElementById('newPhraseCategory');
       const phrase = input.value.trim();
-      const category = categorySelect.value;
+      const category = 'other'; // Defaults to 'other' on creation
       
       if (!phrase) return;
 
