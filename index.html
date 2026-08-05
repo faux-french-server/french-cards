@@ -771,30 +771,29 @@
       }
     }
 
-    // Dynamic extraction: only categories currently assigned to at least 1 phrase
+    // Dynamic extraction: strictly categories assigned to 1 or more phrases
     function getActiveCategories() {
       const activeCats = new Set();
       
-      // Default base categories to include if present or needed
-      const standardDefaults = ["morning", "evening", "other"];
-
       localPhrases.forEach(item => {
         const cat = (item.category || 'other').trim().toLowerCase();
         if (cat) activeCats.add(cat);
       });
 
-      // Sort alphabetically for clean UI
       const sortedList = Array.from(activeCats).sort();
 
-      // Ensure 'other' is available if no categories exist
+      // Ensure fallback if array is empty
       if (sortedList.length === 0) {
-        return standardDefaults;
+        return ["morning", "evening", "other"];
       }
 
       return sortedList;
     }
 
     function updateCategoryDropdowns() {
+      // Clean up legacy categories stored in old cache keys
+      localStorage.removeItem('saved_french_categories');
+
       const activeCategories = getActiveCategories();
 
       // 1. Update Header Filter Dropdown
@@ -809,7 +808,7 @@
         select.appendChild(option);
       });
 
-      // If active filter no longer exists (e.g. last item deleted), reset to 'all'
+      // If active filter no longer exists (e.g. phrase was re-categorized/deleted), reset filter to 'all'
       if (activeCategories.includes(previousSelected)) {
         select.value = previousSelected;
       } else {
@@ -821,7 +820,7 @@
       const optionsContainer = document.getElementById('categoryPickerOptions');
       optionsContainer.innerHTML = '';
 
-      // Standard base options plus any active custom categories
+      // Standard base options + active custom categories
       const pickerOptions = Array.from(new Set(["morning", "evening", "other", ...activeCategories])).sort();
 
       pickerOptions.forEach(cat => {
@@ -861,7 +860,7 @@
     function openCategoryPickerModal(e, index) {
       e.stopPropagation();
       activeCategoryChangeIndex = index;
-      updateCategoryDropdowns(); // Ensure picker options are updated
+      updateCategoryDropdowns();
       document.getElementById('categoryPickerModal').classList.add('active');
     }
 
@@ -1277,7 +1276,7 @@
     async function handleAddPhrase() {
       const input = document.getElementById('phraseInput');
       const phrase = input.value.trim();
-      const category = 'other'; // Defaults to 'other' on creation
+      const category = 'other';
       
       if (!phrase) return;
 
