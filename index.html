@@ -1136,8 +1136,73 @@
       let ghostCard = null;
       let dragOffsetY = 0;
 
+      // Auto-scroll variables
+      let autoScrollFrame = null;
+      let lastTouchY = 0;
+
       function triggerHaptic() {
         if (navigator.vibrate) navigator.vibrate(40);
+      }
+
+      function stopAutoScroll() {
+        if (autoScrollFrame) {
+          cancelAnimationFrame(autoScrollFrame);
+          autoScrollFrame = null;
+        }
+      }
+
+      function handleAutoScrollAndReorder() {
+        if (!isDragging) return;
+
+        const scrollThreshold = 120; // Distance from screen edge to trigger scrolling
+        const maxScrollSpeed = 15;   // Maximum pixels per frame
+        const viewportHeight = window.innerHeight;
+
+        let scrollDelta = 0;
+
+        if (lastTouchY < scrollThreshold) {
+          // Scroll Up when finger is near top
+          const intensity = (scrollThreshold - lastTouchY) / scrollThreshold;
+          scrollDelta = -Math.ceil(intensity * maxScrollSpeed);
+        } else if (lastTouchY > viewportHeight - scrollThreshold) {
+          // Scroll Down when finger is near bottom
+          const intensity = (lastTouchY - (viewportHeight - scrollThreshold)) / scrollThreshold;
+          scrollDelta = Math.ceil(intensity * maxScrollSpeed);
+        }
+
+        if (scrollDelta !== 0) {
+          window.scrollBy(0, scrollDelta);
+
+          // Keep ghost card following finger position during scroll
+          if (ghostCard) {
+            ghostCard.style.top = (lastTouchY - dragOffsetY) + 'px';
+          }
+        }
+
+        // Live Reorder logic based on current drag position
+        const container = document.getElementById('list');
+        const cards = Array.from(container.querySelectorAll('.card:not(.dragging-active)'));
+
+        let targetCard = null;
+        for (let otherCard of cards) {
+          const box = otherCard.getBoundingClientRect();
+          if (lastTouchY >= box.top && lastTouchY <= box.bottom) {
+            targetCard = otherCard;
+            break;
+          }
+        }
+
+        if (targetCard) {
+          const box = targetCard.getBoundingClientRect();
+          const middleY = box.top + box.height / 2;
+          if (lastTouchY < middleY) {
+            container.insertBefore(card, targetCard);
+          } else {
+            container.insertBefore(card, targetCard.nextSibling);
+          }
+        }
+
+        autoScrollFrame = requestAnimationFrame(handleAutoScrollAndReorder);
       }
 
       card.addEventListener('touchstart', (e) => {
@@ -1148,6 +1213,7 @@
         const touch = e.touches[0];
         startX = touch.clientX;
         startY = touch.clientY;
+        lastTouchY = touch.clientY;
         isSwiping = false;
         isDragging = false;
         card.classList.remove('animating');
@@ -1169,6 +1235,10 @@
           ghostCard.style.top = (touch.clientY - dragOffsetY) + 'px';
 
           document.body.appendChild(ghostCard);
+
+          // Start continuous auto-scroll and reorder animation loop
+          stopAutoScroll();
+          autoScrollFrame = requestAnimationFrame(handleAutoScrollAndReorder);
         }, 400);
 
       }, { passive: true });
@@ -1177,6 +1247,7 @@
         const touch = e.touches[0];
         let deltaX = touch.clientX - startX;
         let deltaY = touch.clientY - startY;
+        lastTouchY = touch.clientY;
 
         if (!isDragging && Math.hypot(deltaX, deltaY) > 10) {
           clearTimeout(longPressTimer);
@@ -1186,29 +1257,6 @@
           e.preventDefault();
           if (ghostCard) {
             ghostCard.style.top = (touch.clientY - dragOffsetY) + 'px';
-          }
-
-          const container = document.getElementById('list');
-          const cards = Array.from(container.querySelectorAll('.card:not(.dragging-active)'));
-          const currentTouchY = touch.clientY;
-
-          let targetCard = null;
-          for (let otherCard of cards) {
-            const box = otherCard.getBoundingClientRect();
-            if (currentTouchY >= box.top && currentTouchY <= box.bottom) {
-              targetCard = otherCard;
-              break;
-            }
-          }
-
-          if (targetCard) {
-            const box = targetCard.getBoundingClientRect();
-            const middleY = box.top + box.height / 2;
-            if (currentTouchY < middleY) {
-              container.insertBefore(card, targetCard);
-            } else {
-              container.insertBefore(card, targetCard.nextSibling);
-            }
           }
           return;
         }
@@ -1227,6 +1275,7 @@
 
       card.addEventListener('touchend', (e) => {
         clearTimeout(longPressTimer);
+        stopAutoScroll();
 
         if (isDragging) {
           if (ghostCard) {
