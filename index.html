@@ -779,7 +779,6 @@
 
           input.value = '';
 
-          // Sequence playback handled dynamically
           if (result.french && result.slang) {
             speakFrenchSequence(result.french, result.slang);
           } else if (result.french) {
@@ -801,12 +800,13 @@
     }
 
     function speakFrenchSequence(firstText, secondText) {
-      // Native iOS WebKit Handler Dynamic Timing Fix
+      // Native iOS WebKit Handler Timing Fix
       if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.nativeSpeak) {
         window.webkit.messageHandlers.nativeSpeak.postMessage("NORMAL|" + firstText);
         
-        // Dynamic duration based on character length + baseline offset
-        const estimatedDurationMs = Math.max(2500, (firstText.length * 90) + 1000);
+        // Tighter dynamic timing calculation tailored to standard iOS TTS speaking rates
+        const speechRateMultiplier = isIOS ? 60 : 50; 
+        const estimatedDurationMs = (firstText.length * speechRateMultiplier) + 400;
         
         setTimeout(() => {
           window.webkit.messageHandlers.nativeSpeak.postMessage("NORMAL|" + secondText);
@@ -831,7 +831,7 @@
           utterance2.rate = isIOS ? 0.52 : 0.88;
           if (frenchVoice) utterance2.voice = frenchVoice;
           window.speechSynthesis.speak(utterance2);
-        }, 800);
+        }, 500); // Clean 0.5s pause
       };
 
       window.speechSynthesis.speak(utterance1);
