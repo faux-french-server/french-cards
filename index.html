@@ -320,7 +320,13 @@
     </div>
 
     <form class="add-phrase-container" onsubmit="event.preventDefault(); handleAddPhrase();">
-      <input type="text" id="phraseInput" placeholder="Enter new phrase..." onkeydown="handleKeyPress(event)" />
+      <input 
+        type="text" 
+        id="phraseInput" 
+        placeholder="Enter new phrase..." 
+        onfocus="triggerNativeMic()" 
+        onkeydown="handleKeyPress(event)" 
+      />
       <button type="submit" id="addBtn">Translate</button>
     </form>
   </div>
@@ -357,6 +363,12 @@
       }
     }
     checkEnvironment();
+
+    function triggerNativeMic() {
+      if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.startDictation) {
+        window.webkit.messageHandlers.startDictation.postMessage("START");
+      }
+    }
 
     function loadVoices() {
       if ('speechSynthesis' in window) {
