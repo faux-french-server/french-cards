@@ -63,13 +63,6 @@
       text-transform: capitalize;
     }
 
-    .category-filter-select option {
-      background-repeat: no-repeat;
-      background-position: 8px center;
-      background-size: 12px 12px;
-      padding-left: 26px;
-    }
-
     .sync-btn {
       background: #e2e8f0;
       border: none;
@@ -720,7 +713,7 @@
 
     <div class="header-sub-row">
       <select class="category-filter-select" id="categoryFilter" onchange="filterByCategory()">
-        <option value="all">⚪ All Categories</option>
+        <option value="all">All Categories</option>
       </select>
 
       <button class="study-btn" id="studyBtn" onclick="toggleStudyMode()">
@@ -827,13 +820,6 @@
     }
     checkEnvironment();
 
-    // Generates an inline SVG data URL that matches the EXACT hex color perfectly
-    function getColorCircleDataUrl(hex) {
-      if (!hex) hex = '#cbd5e1';
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="${hex}" stroke="rgba(0,0,0,0.15)" stroke-width="1.5"/></svg>`;
-      return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
-    }
-
     // Map existing category colors from localPhrases and standard fallbacks
     function buildCategoryColorMap() {
       localPhrases.forEach(item => {
@@ -863,16 +849,12 @@
 
       const select = document.getElementById('categoryFilter');
       const previousSelected = currentCategoryFilter;
-      select.innerHTML = '<option value="all">⚪ All Categories</option>';
+      select.innerHTML = '<option value="all">All Categories</option>';
       
       activeCategories.forEach(cat => {
         const option = document.createElement('option');
-        const catColor = categoryColors[cat] || defaultCategoryColors[cat] || '#cbd5e1';
-        
         option.value = cat;
-        option.textContent = `  ${cat.charAt(0).toUpperCase() + cat.slice(1)}`;
-        option.style.backgroundImage = `url("${getColorCircleDataUrl(catColor)}")`;
-
+        option.textContent = cat.charAt(0).toUpperCase() + cat.slice(1);
         select.appendChild(option);
       });
 
