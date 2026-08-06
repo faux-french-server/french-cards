@@ -702,7 +702,7 @@
   <div class="sticky-header">
     <div class="header-top-row">
       <h2>🇫🇷 French Phrases</h2>
-      <button class="sync-btn" id="syncBtn" onclick="syncWithCloud()" title="Sync from Google Sheet">
+      <button class="sync-btn" id="syncBtn" onclick="syncWithCloud()" title="Sync from Server">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21.5 2v6h-6"></path>
           <path d="M2.5 22v-6h6"></path>
@@ -791,7 +791,9 @@
   </div>
 
   <script>
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFm4CMsRhjso3PoojdVf1X3ucuBdiznvcfNrcbEmqrnaoRYkOcn5vWbPOGYjaT4BLy/exec';
+    // UMBREL SERVER REST API ENDPOINT
+    const API_URL = 'http://192.168.0.98:3000/api/phrases';
+
     let frenchVoice = null;
     let localPhrases = [];
     let categoryColors = {}; // Maps category name -> hex color
@@ -969,29 +971,33 @@
         }
         categoryColors[newCatName] = selectedColor;
 
+        const itemsToUpdate = [];
         localPhrases.forEach(item => {
           if ((item.category || '').trim().toLowerCase() === oldCat) {
             item.category = newCatName;
             item.color = selectedColor;
+            if (item.id) itemsToUpdate.push(item);
           }
         });
 
         saveToLocalStorage(localPhrases);
         renderCards(localPhrases);
 
-        try {
-          await fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({
-              action: 'renameCategoryAll',
-              oldCategory: oldCat,
-              newCategory: newCatName,
-              color: selectedColor
-            })
-          });
-        } catch (e) {
-          console.error('Failed to sync category rename update', e);
+        // Sync updated category details to SQLite backend
+        for (const item of itemsToUpdate) {
+          try {
+            await fetch(`${API_URL}/category`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id: item.id,
+                category: newCatName,
+                color: selectedColor
+              })
+            });
+          } catch (e) {
+            console.error('Failed to sync category update for item', item.id, e);
+          }
         }
       }
 
@@ -1048,19 +1054,20 @@
         saveToLocalStorage(localPhrases);
         renderCards(localPhrases);
 
-        try {
-          await fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({
-              action: 'updateCategory',
-              english: item.english,
-              category: cleanCat,
-              color: colorHex || item.color || ''
-            })
-          });
-        } catch (e) {
-          console.error('Failed to sync updated category to Google Sheet', e);
+        if (item.id) {
+          try {
+            await fetch(`${API_URL}/category`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id: item.id,
+                category: cleanCat,
+                color: colorHex || item.color || ''
+              })
+            });
+          } catch (e) {
+            console.error('Failed to sync updated category to server', e);
+          }
         }
       }
       closeCategoryPickerModal();
@@ -1227,7 +1234,7 @@
           </div>
         `;
 
-        // Slang / Modern Row (Always Shown, falling back to formalText if empty)
+        // Slang / Modern Row
         const slangText = item.slang || item.french || '';
         contentHtml += `
           <div class="translation-row">
@@ -1501,7 +1508,7 @@
       });
     }
 
-    async function commitNewOrder() {
+    function commitNewOrder() {
       const container = document.getElementById('list');
       const cardNodes = Array.from(container.querySelectorAll('.card'));
       
@@ -1525,20 +1532,6 @@
 
       saveToLocalStorage(localPhrases);
       renderCards(localPhrases);
-
-      try {
-        const orderedEnglishPhrases = localPhrases.map(p => p.english);
-        await fetch(SCRIPT_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain' },
-          body: JSON.stringify({
-            action: 'reorder',
-            orderedPhrases: orderedEnglishPhrases
-          })
-        });
-      } catch (e) {
-        console.error('Failed to sync new order with Google Sheet', e);
-      }
     }
 
     async function deletePhrase(index) {
@@ -1549,17 +1542,12 @@
       saveToLocalStorage(localPhrases);
       renderCards(localPhrases);
 
-      try {
-        await fetch(SCRIPT_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain' },
-          body: JSON.stringify({
-            action: 'delete',
-            english: itemToDelete.english
-          })
-        });
-      } catch (e) {
-        console.error('Failed to sync deletion with Google Sheet', e);
+      if (itemToDelete && itemToDelete.id) {
+        try {
+          await fetch(`${API_URL}/${itemToDelete.id}`, { method: 'DELETE' });
+        } catch (e) {
+          console.error('Failed to sync deletion with Umbrel server', e);
+        }
       }
     }
 
@@ -1593,23 +1581,20 @@
       syncBtn.classList.add('spinning');
 
       try {
-        const freshUrl = SCRIPT_URL + (SCRIPT_URL.includes('?') ? '&' : '?') + 'cacheBust=' + Date.now();
-        const response = await fetch(freshUrl, { method: 'GET', redirect: 'follow' });
+        const response = await fetch(API_URL);
         const remoteData = await response.json();
 
-        let phrasesData = [];
         if (Array.isArray(remoteData)) {
-          phrasesData = remoteData;
-        } else if (remoteData && remoteData.phrases) {
-          phrasesData = remoteData.phrases;
+          localPhrases = remoteData;
+        } else {
+          localPhrases = [];
         }
 
-        localPhrases = phrasesData.reverse();
         saveToLocalStorage(localPhrases);
         renderCards(localPhrases);
 
       } catch (err) {
-        alert('Could not sync with Google Sheets. Check connection.');
+        console.error('Could not sync with Umbrel server', err);
       } finally {
         syncBtn.classList.remove('spinning');
       }
@@ -1646,26 +1631,18 @@
       btn.disabled = true;
 
       try {
-        const response = await fetch(SCRIPT_URL, {
+        const response = await fetch(API_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'text/plain' },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             phrase: phrase,
             category: category 
           })
         });
 
-        const result = await response.json();
+        const newCard = await response.json();
 
-        if (result.status === 'success') {
-          const newCard = { 
-            english: result.english, 
-            french: result.french,
-            slang: result.slang,
-            category: result.category || category,
-            color: result.color || ''
-          };
-
+        if (newCard && newCard.id) {
           localPhrases.unshift(newCard);
           saveToLocalStorage(localPhrases);
 
@@ -1674,23 +1651,22 @@
           }
 
           renderCards(localPhrases);
-
           input.value = '';
 
-          if (result.french && result.slang) {
-            speakFrenchSequence(result.french, result.slang);
-          } else if (result.french) {
-            speakFrench(result.french, false);
-          } else if (result.slang) {
-            speakFrench(result.slang, false);
+          if (newCard.french && newCard.slang) {
+            speakFrenchSequence(newCard.french, newCard.slang);
+          } else if (newCard.french) {
+            speakFrench(newCard.french, false);
+          } else if (newCard.slang) {
+            speakFrench(newCard.slang, false);
           }
 
         } else {
-          alert('Translation error: ' + (result.message || 'Unknown error'));
+          alert('Translation error from server.');
         }
 
       } catch (error) {
-        alert('Failed to connect to translation server.');
+        alert('Failed to connect to home server.');
       } finally {
         btn.innerText = 'Translate';
         btn.disabled = false;
