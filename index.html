@@ -1214,31 +1214,31 @@
         let contentHtml = `<button class="delete-btn" onclick="handleWebDelete(event, ${index}, this.parentElement)" title="Delete Phrase">&times;</button>`;
         contentHtml += `<div>${badgeHtml}</div>`;
 
-        if (item.french) {
-          contentHtml += `
-            <div class="translation-row">
-              <div class="translation-label">Standard</div>
-              <div class="french" onclick="handleSpeechClick(event, '${escapeJsQuote(item.french)}', false)">
-                ${escapeHtml(item.french)}
-              </div>
-              <button class="action-btn" onclick="handleSpeechClick(event, '${escapeJsQuote(item.french)}', true)" title="Play slowly">🐢</button>
-              <button class="action-btn" onclick="copyToClipboard(event, '${escapeJsQuote(item.french)}', this)" title="Copy to clipboard">${copyIconSvg}</button>
+        // Standard French Row (Always Shown)
+        const formalText = item.french || '';
+        contentHtml += `
+          <div class="translation-row">
+            <div class="translation-label">Standard</div>
+            <div class="french" onclick="handleSpeechClick(event, '${escapeJsQuote(formalText)}', false)">
+              ${escapeHtml(formalText)}
             </div>
-          `;
-        }
+            <button class="action-btn" onclick="handleSpeechClick(event, '${escapeJsQuote(formalText)}', true)" title="Play slowly">🐢</button>
+            <button class="action-btn" onclick="copyToClipboard(event, '${escapeJsQuote(formalText)}', this)" title="Copy to clipboard">${copyIconSvg}</button>
+          </div>
+        `;
 
-        if (item.slang) {
-          contentHtml += `
-            <div class="translation-row">
-              <div class="translation-label">Slang / Modern</div>
-              <div class="french slang-text" onclick="handleSpeechClick(event, '${escapeJsQuote(item.slang)}', false)">
-                ${escapeHtml(item.slang)}
-              </div>
-              <button class="action-btn" onclick="handleSpeechClick(event, '${escapeJsQuote(item.slang)}', true)" title="Play slowly">🐢</button>
-              <button class="action-btn" onclick="copyToClipboard(event, '${escapeJsQuote(item.slang)}', this)" title="Copy to clipboard">${copyIconSvg}</button>
+        // Slang / Modern Row (Always Shown, falling back to formalText if empty)
+        const slangText = item.slang || item.french || '';
+        contentHtml += `
+          <div class="translation-row">
+            <div class="translation-label">Slang / Modern</div>
+            <div class="french slang-text" onclick="handleSpeechClick(event, '${escapeJsQuote(slangText)}', false)">
+              ${escapeHtml(slangText)}
             </div>
-          `;
-        }
+            <button class="action-btn" onclick="handleSpeechClick(event, '${escapeJsQuote(slangText)}', true)" title="Play slowly">🐢</button>
+            <button class="action-btn" onclick="copyToClipboard(event, '${escapeJsQuote(slangText)}', this)" title="Copy to clipboard">${copyIconSvg}</button>
+          </div>
+        `;
 
         contentHtml += `<div class="english">${escapeHtml(item.english)}</div>`;
 
